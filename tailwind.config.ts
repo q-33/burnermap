@@ -1,11 +1,12 @@
-// tailwind.config.js
-const FormKitVariants = require('@formkit/themes/tailwindcss')
+import FormKitVariants from '@formkit/themes/tailwindcss'
 
-module.exports = {
+export default {
   content: [
-    './src/**/*.{html,js,vue}',
+    './components/**/*.{html,js,ts,vue}',
+    './layouts/**/*.{html,js,ts,vue}',
+    './pages/**/*.{html,js,ts,vue}',
+    './app.vue',
     './node_modules/@formkit/themes/dist/tailwindcss/genesis/index.cjs',
-    './node_modules/flowbite/**/*.{js,ts}',
   ],
-  plugins: [FormKitVariants, require('flowbite/plugin')],
+  plugins: [FormKitVariants],
 }

@@ -6,7 +6,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const user = ref<any>({})
 
-  function setToken(authToken: string) {
+  function setToken(_authToken: string) {
   }
 
   return {

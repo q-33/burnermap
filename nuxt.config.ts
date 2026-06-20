@@ -28,8 +28,6 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
     '@nuxtjs/tailwindcss',
     '@formkit/nuxt',
-    'nuxt-headlessui',
-    'nuxt-icon',
     '@pinia-plugin-persistedstate/nuxt',
     '@nuxtjs/algolia',
     '@nuxtjs/plausible',

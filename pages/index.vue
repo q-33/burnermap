@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { NModal } from 'naive-ui'
 
-const online = useOnline()
-const router = useRouter()
-
 const showModal = ref(true)
 
 const bodyStyle = {
@@ -12,7 +9,7 @@ const bodyStyle = {
 const segmented = {
   content: 'soft',
   footer: 'soft',
-}
+} as const
 </script>
 
 <template>

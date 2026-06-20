@@ -2,12 +2,11 @@
 import '@coreui/coreui/dist/css/coreui.min.css'
 
 import { NCollapse, NCollapseItem } from 'naive-ui'
+import type { LocationDictionary } from '../../../types/camp'
 
 const props = defineProps<{
-  camps: Object | undefined
+  camps: LocationDictionary | undefined
 }>()
-
-console.log('what have we got', props.camps)
 </script>
 
 <template>
@@ -27,26 +26,5 @@ console.log('what have we got', props.camps)
         </NCollapseItem>
       </div>
     </NCollapse>
-    <!-- <CAccordion>
-      <CAccordionItem v-for="(item, key) in props.camps">
-        {{ key }}
-        <template v-for="campArray in item">
-          {{ console.log('what is campArray here', campArray) }}
-          <CAccordionItem>
-            <CAccordionHeader>
-              {{ campArray.name }}
-              <CAccordionBody>
-                {{ campArray.description }}
-              </CAccordionBody>
-            </CAccordionHeader>
-          </CAccordionItem>
-        </template>
-        <NCollapse v-for="(campArray, index) in item" :key="index" default-expanded-names="1" accordion>
-          <NCollapseItem title="right" name="1">
-            <div>good</div>
-          </NCollapseItem>
-        </NCollapse>
-      </CAccordionItem>
-    </CAccordion> -->
   </div>
 </template>

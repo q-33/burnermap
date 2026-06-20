@@ -13,25 +13,24 @@ import {
   CNavItem,
 } from '@coreui/vue'
 import { ref } from 'vue'
+import type { GeoJsonObject } from 'geojson'
 import { useCampStore } from '../../stores/camps'
+import type { LocationDictionary } from '../../types/camp'
 import { centerCampPolyLines, clockPolyLines, streets } from './Streets'
 import Accordion from './Accordion/index.vue'
 
-// import geoJson from './BurningMan.json'
 import polygons from './Polygons.json'
-import toilet from './toilet.png'
 import marker from './marker.png'
 import '@coreui/coreui/dist/css/coreui.min.css'
 
-const pointerLocation = ref()
 const hoverStyle = {
   fillOpacity: 0.9,
   color: '#AA4A44',
 }
-const center = [40.786400, -119.203500]
-const centerCamp = [40.78052685763084, -119.21122602690583]
-const greetersGap = [40.773203, -119.220953]
-const polyline = {
+const center: L.LatLngTuple = [40.786400, -119.203500]
+const centerCamp: L.LatLngTuple = [40.78052685763084, -119.21122602690583]
+const greetersGap: L.LatLngTuple = [40.773203, -119.220953]
+const polyline: { latlngs: L.LatLngTuple[]; color: string } = {
   latlngs: [
     [40.782814, -119.233566],
     [40.807028, -119.217274],
@@ -58,28 +57,27 @@ const selectedStyle = {
   fillColor: '#26547C',
 }
 
-const toiletIcon = new L.Icon({
-  iconUrl: toilet,
-  iconSize: [14, 14],
-})
-
 const markerIcon = new L.Icon({
   iconUrl: marker,
   iconSize: [14, 14],
 })
 
-const selectedCamp = ref()
+const selectedCamp = ref<LocationDictionary>()
 const blockId = ref({
   id: undefined,
   blockTime: undefined,
   roadLetter: undefined,
 })
 const showPolygons = ref(true)
-const block = ref(undefined)
-const map = ref(undefined)
+const block = ref<L.Path>()
+const map = ref<L.Map>()
 const campStore = useCampStore()
 const zoom = 14
-// const algolia = useAlgoliaRef()
+
+const geojsonData = polygons as unknown as GeoJsonObject
+const streetLines = streets as L.LatLngExpression[][]
+const centerCampLines = centerCampPolyLines as L.LatLngExpression[][]
+const clockLines = clockPolyLines as L.LatLngExpression[][]
 
 const clearBlock = function () {
   blockId.value = {
@@ -87,8 +85,8 @@ const clearBlock = function () {
     blockTime: undefined,
     roadLetter: undefined,
   }
-  block.value.setStyle(defaultStyle)
-  selectedCamp.value = null
+  block.value?.setStyle(defaultStyle)
+  selectedCamp.value = undefined
 }
 
 const onEachFeature = function (feature: any, layer: any) {
@@ -107,7 +105,7 @@ const onEachFeature = function (feature: any, layer: any) {
       camps?.forEach((camp: any) => {
         if (camp.locations) {
           const currentLocation = campStore.getMostRecentCampLocation(camp.locations)
-          if (currentLocation.gps_latitude && currentLocation.gps_longitude) {
+          if (currentLocation.gps_latitude && currentLocation.gps_longitude && map.value) {
             L.marker([currentLocation.gps_latitude, currentLocation.gps_longitude], {
               icon: markerIcon,
             }).addTo(map.value)
@@ -127,29 +125,14 @@ const onEachFeature = function (feature: any, layer: any) {
       blockTime: feature.properties.blockTime,
       roadLetter: feature.properties.roadLetter,
     }
-    const newCenter = [(layer._bounds._northEast.lat + layer._bounds._southWest.lat) / 2, (layer._bounds._northEast.lng + layer._bounds._southWest.lng) / 2]
-    map.value.setView(newCenter, 16)
+    const newCenter: L.LatLngExpression = [(layer._bounds._northEast.lat + layer._bounds._southWest.lat) / 2, (layer._bounds._northEast.lng + layer._bounds._southWest.lng) / 2]
+    map.value?.setView(newCenter, 16)
   })
 }
 
-function handleZoom(zoom: any) {
+function handleZoom(zoom: number) {
   showPolygons.value = zoom < 17
 }
-
-const mapOptions = {
-  pointToLayer(__: any, latlng: any) {
-    return L.marker(latlng, {
-      icon: toiletIcon,
-    })
-  },
-}
-
-const mapStyle = ({
-  color: '#192841',
-  weight: 1.5,
-  opacity: 1,
-  fillOpacity: 1,
-})
 
 const polygonOptions = { onEachFeature }
 </script>
@@ -171,17 +154,17 @@ const polygonOptions = { onEachFeature }
           <LMarker :lat-lng="center" />
           <LMarker :lat-lng="centerCamp" />
           <LMarker :lat-lng="greetersGap" />
-          <LPolyline v-for="street in centerCampPolyLines" :key="street" :lat-lngs="street" :color="centerCampColor" :weight="1" />
-          <LPolyline v-for="street in clockPolyLines" :key="street" :lat-lngs="street" color="black" :weight="1" />
+          <LPolyline v-for="(street, i) in centerCampLines" :key="`cc-${i}`" :lat-lngs="street" :color="centerCampColor" :weight="1" />
+          <LPolyline v-for="(street, i) in clockLines" :key="`clock-${i}`" :lat-lngs="street" color="black" :weight="1" />
           <LGeoJson
             :visible="showPolygons"
-            :geojson="polygons"
-            :options-style="defaultStyle"
+            :geojson="geojsonData"
+            :options-style="() => defaultStyle"
             :options="polygonOptions"
             :on-each-feature="onEachFeature"
             layer-type="overlay"
           />
-          <LPolyline v-for="street in streets" :key="street" :lat-lngs="street" :color="streetColor" :weight="1" />
+          <LPolyline v-for="(street, i) in streetLines" :key="`street-${i}`" :lat-lngs="street" :color="streetColor" :weight="1" />
         </LMap>
       </div>
       <CCard v-if="blockId" class="mt-4 w-[90vw] overflow-y-scroll md:w-[30vw]">

@@ -9,7 +9,7 @@ const bodyStyle = {
 const segmented = {
   content: 'soft',
   footer: 'soft',
-}
+} as const
 </script>
 
 <template>

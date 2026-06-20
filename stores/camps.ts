@@ -12,7 +12,7 @@ export const useCampStore = defineStore('camps', () => {
 
   const locationsMap = ref(locationType)
 
-  const { isLoading, refetch, isError, data, error } = useQuery({
+  const { isLoading, isError, data } = useQuery({
     queryKey: ['allCamps'],
     queryFn: campApi.getAll,
   })
@@ -32,7 +32,6 @@ export const useCampStore = defineStore('camps', () => {
         locationsMap.value[mostRecent.string].push(camp)
       }
     })
-    console.log('locationsMap', locationsMap.value)
     return locationsMap.value
   }
 
@@ -49,7 +48,6 @@ export const useCampStore = defineStore('camps', () => {
   }
 
   function getCampsAtLocation(locations: string[], mapDictionary: any) {
-    console.log('getCampsAtLocation', locations)
     const dict: { [local: string]: CampWithLocationDto[] } = {}
 
     for (const location of locations) {
