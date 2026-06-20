@@ -1,0 +1,113 @@
+<script setup lang="ts">
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { cityGridGeoJson, manPoint } from '~~/lib/brc/cityGeoJson'
+
+interface CampPin { name: string, lat: number, lng: number, address: string }
+
+const props = defineProps<{ camps: CampPin[] }>()
+const emit = defineEmits<{ position: [{ lat: number, lng: number }] }>()
+
+const el = ref<HTMLDivElement>()
+let map: maplibregl.Map | undefined
+
+function campsGeoJson(): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: props.camps.map(c => ({
+      type: 'Feature',
+      properties: { name: c.name, address: c.address },
+      geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+    })),
+  }
+}
+
+onMounted(() => {
+  if (!el.value)
+    return
+  map = new maplibregl.Map({
+    container: el.value,
+    // tile-free style: the playa is featureless, so we draw only the city grid
+    style: {
+      version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+      sources: {},
+      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#d8c9a3' } }],
+    },
+    center: manPoint,
+    zoom: 13.2,
+    attributionControl: false,
+  })
+
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+  const geolocate = new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: true,
+    showUserLocation: true,
+  })
+  map.addControl(geolocate, 'top-right')
+  geolocate.on('geolocate', (e: any) => {
+    emit('position', { lat: e.coords.latitude, lng: e.coords.longitude })
+  })
+
+  map.on('load', () => {
+    if (!map)
+      return
+    // city grid
+    map.addSource('grid', { type: 'geojson', data: cityGridGeoJson() })
+    map.addLayer({
+      id: 'streets',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'street'],
+      paint: { 'line-color': '#7a6f57', 'line-width': 1.5 },
+    })
+    map.addLayer({
+      id: 'spokes',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'spoke'],
+      paint: { 'line-color': '#a89a78', 'line-width': 0.8 },
+    })
+    // the Man
+    map.addSource('man', { type: 'geojson', data: { type: 'Point', coordinates: manPoint } })
+    map.addLayer({ id: 'man', type: 'circle', source: 'man', paint: { 'circle-radius': 5, 'circle-color': '#b91c1c' } })
+    // camp pins
+    map.addSource('camps', { type: 'geojson', data: campsGeoJson() })
+    map.addLayer({
+      id: 'camps',
+      type: 'circle',
+      source: 'camps',
+      paint: { 'circle-radius': 6, 'circle-color': '#1d4ed8', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+    })
+    map.addLayer({
+      id: 'camp-labels',
+      type: 'symbol',
+      source: 'camps',
+      layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.2], 'text-anchor': 'top' },
+      paint: { 'text-color': '#1e293b', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
+    })
+    map.on('click', 'camps', (e) => {
+      const f = e.features?.[0]
+      if (f) {
+        new maplibregl.Popup()
+          .setLngLat((f.geometry as any).coordinates)
+          .setHTML(`<b>${f.properties?.name}</b><br>${f.properties?.address ?? ''}`)
+          .addTo(map!)
+      }
+    })
+  })
+})
+
+// keep camp pins in sync
+watch(() => props.camps, () => {
+  const src = map?.getSource('camps') as maplibregl.GeoJSONSource | undefined
+  src?.setData(campsGeoJson())
+}, { deep: true })
+
+onBeforeUnmount(() => map?.remove())
+</script>
+
+<template>
+  <div ref="el" class="size-full" />
+</template>
