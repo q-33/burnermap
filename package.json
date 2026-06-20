@@ -21,6 +21,7 @@
     "@formkit/themes": "^0.17.2",
     "@nuxtjs/algolia": "^1.9.0",
     "@pinia-plugin-persistedstate/nuxt": "^1.1.1",
+    "@supabase/supabase-js": "2.108.2",
     "algoliasearch": "^4.19.1",
     "vue-instantsearch": "^4.10.8",
     "vue-query": "^1.26.0"

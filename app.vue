@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { useAlertStore } from './stores/alert'
+import { useAuth } from '~/composables/auth/useAuth'
 import { appName } from '~/constants'
 
 const alertStore = useAlertStore()
+const { initAuth } = useAuth()
+
+onMounted(() => {
+  initAuth()
+})
 
 useHead({
   title: appName,

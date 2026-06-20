@@ -1,112 +1,46 @@
 import { useAuthStore } from '~~/stores/auth'
 
-// const alertStore = useAlertStore()
-
-const config = useRuntimeConfig()
-
+// Auth backed by Supabase Auth. The session is persisted by supabase-js
+// (localStorage) and mirrored into the auth store for the app/middleware.
 export function useAuth() {
   const authStore = useAuthStore()
+  const supabase = useSupabase()
 
-  const setUser = (user: any) => {
-    authStore.user = user
-  }
-
-  const login = async (
-    email: string,
-    password: string,
-  ) => {
-    const data: any = await $fetch(`${config.public.apiBase}/auth/signin`, {
-      method: 'POST',
-      credentials: 'include',
-      body: {
-        email,
-        password,
-      },
-    })
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error)
+      throw error
+    authStore.user = data.user ?? {}
     return authStore.user
   }
 
-  const verify = async (
-    verificationCode: string,
-  ) => {
-    const data: any = await $fetch(`${config.public.apiBase}/auth/email/verify/${verificationCode}`, {
-      method: 'GET',
-      credentials: 'include',
-    })
+  const signup = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error)
+      throw error
+    authStore.user = data.user ?? {}
     return authStore.user
-  }
-
-  const signup = async (
-    email: string,
-    password: string,
-  ) => {
-    // console.log(email)
-    const data: any = await $fetch(`${config.public.apiBase}/auth/signup`, {
-      method: 'POST',
-      credentials: 'include',
-      body: {
-        email,
-        password,
-      },
-    })
-    return authStore.user
-  }
-
-  const resetPassword = async (
-    email: string,
-    newPassword: string,
-    newPasswordToken: string,
-  ) => {
-    const data: any = await $fetch(`${config.public.apiBase}/auth/email/reset-password`, {
-      method: 'POST',
-      credentials: 'include',
-      body: {
-        email,
-        newPassword,
-        newPasswordToken,
-      },
-    })
-    return data
-  }
-
-  const requestReset = async (
-    email: string,
-  ) => {
-    const data: any = await $fetch(`${config.public.apiBase}/auth/email/forgot-password/${email}`, {
-      method: 'GET',
-      credentials: 'include',
-    })
-    return data
   }
 
   const logout = async () => {
+    await supabase.auth.signOut()
     authStore.user = {}
-    window.location.reload()
   }
 
   const me = async () => {
-    try {
-      const data: any = await $fetch(`${config.public.apiBase}/user/me`, {
-        method: 'GET',
-        credentials: 'include',
-      })
-      await setUser(data)
-    }
-    catch (error) {
-      window.console.log(error)
-    //   alertStore.setAlert(error as string, 'bg-error')
-    }
-
+    const { data } = await supabase.auth.getUser()
+    authStore.user = data.user ?? {}
     return authStore.user
   }
 
-  return {
-    login,
-    logout,
-    signup,
-    me,
-    verify,
-    resetPassword,
-    requestReset,
+  // Restore an existing session on app load and keep the store in sync.
+  const initAuth = async () => {
+    const { data } = await supabase.auth.getSession()
+    authStore.user = data.session?.user ?? {}
+    supabase.auth.onAuthStateChange((_event, session) => {
+      authStore.user = session?.user ?? {}
+    })
   }
+
+  return { login, signup, logout, me, initAuth }
 }

@@ -7,3 +7,6 @@ dist
 .idea/
 .env
 tasks/
+
+# local agent skills (npx skills add) — regenerable tooling
+.agents/

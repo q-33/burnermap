@@ -1,27 +1,37 @@
 <script setup lang="ts">
-import { useMutation } from 'vue-query'
+import { useMutation, useQueryClient } from 'vue-query'
 import { CAMP_ADDRESS_OPTIONS, CENTER_CAMP_ADDRESS_OPTIONS } from '~/constants/index'
-import { useAlertStore } from '~/stores/alert'
 import { useCamps } from '~/composables/api/useCamps'
+import { useAuthStore } from '~/stores/auth'
+import { useBrcGeocode } from '~/composables/useBrcGeocode'
 
 const { campList = [] } = defineProps<{
-  campList: Array<any>
+  campList?: Array<any>
 }>()
 
-const alertStore = useAlertStore()
+const authStore = useAuthStore()
 const { addLocationByCampId } = useCamps()
+const { geocodeAddress } = useBrcGeocode()
+const queryClient = useQueryClient()
 
+const isLoggedIn = computed(() => !!authStore.user?.id)
 const submitted = ref(false)
 
 function useCreateCamp() {
-  return useMutation((formSubmission: any) => addLocationByCampId(formSubmission.id, { string: formSubmission.address }),
+  return useMutation(
+    (sub: any) => addLocationByCampId(sub.id, {
+      string: sub.address,
+      gps_latitude: sub.gps_latitude,
+      gps_longitude: sub.gps_longitude,
+    }),
     {
-      onSuccess: (data: any, _, __) => {
+      onSuccess: () => {
         submitted.value = true
-        window.console.log('data from api', data)
-        // alertStore.setAlert('Successfully Added Location', 'green')
+        // refresh the map/list so the new location shows up
+        queryClient.invalidateQueries(['allCamps'])
       },
-    })
+    },
+  )
 }
 
 const { isLoading, isError, error, isSuccess, mutate } = useCreateCamp()
@@ -33,15 +43,20 @@ const campForm = ref({
 })
 
 function addCampLocation() {
-  mutate(campForm.value)
+  const gps = geocodeAddress(campForm.value.address)
+  mutate({
+    id: campForm.value.id,
+    address: campForm.value.address,
+    gps_latitude: gps?.gps_latitude ?? null,
+    gps_longitude: gps?.gps_longitude ?? null,
+  })
 }
 
 // sortCampList sorts the camplist array by name
-function sortCampList(campList: any[]) {
-  const list = campList.sort((a: any, b: any) => {
+function sortCampList(list: any[]) {
+  return list.sort((a: any, b: any) => {
     return a.label?.localeCompare(b.label, undefined, { sensitivity: 'base' })
   })
-  return list
 }
 
 const CAMP_OPTIONS = computed(() => {
@@ -69,69 +84,66 @@ const addressSelection = computed(() => {
   if (campForm.value.addressType === 'Center Camp Plaza')
     return CENTER_CAMP_ADDRESS_OPTIONS
 
-  if (campForm.value.addressType === '')
-    return []
+  return []
 })
 </script>
 
 <template>
   <div class="w-80 text-left">
-    <div v-if="!isLoading">
-      <div v-if="!isSuccess">
-        <FormKit
-          type="form"
-          @submit="addCampLocation"
-        >
-          <FormKit v-model="campForm" type="group">
-            <h2 class="my-4">
-              It's coming! Use the form below to add your camp's location!
-            </h2>
-            <div v-if="!isLoading">
-              <FormKit
-                type="select"
-                placeholder="Select"
-                name="id"
-                label="Camp Name"
-                validation="required"
-                :options="CAMP_OPTIONS"
-              />
-              <FormKit
-                type="select"
-                placeholder="Select"
-                name="addressType"
-                label="Address Type"
-                help="The specific order your address was provided by Placement will list your frontage first. Is your camp located on a letter or a number street, or within Center Camp Plaza/Rod's Ring Road?"
-                validation="required"
-                :options="[
-                  { label: 'Letter', value: 'Letter' },
-                  { label: 'Number', value: 'Number' },
-                  { label: 'Center Camp/Rods Ring Road', value: 'Center Camp Plaza' },
-                ]"
-              />-
-              <FormKit
-                type="select"
-                placeholder="Select"
-                name="address"
-                label="Address"
-                validation="required"
-                :options="addressSelection"
-              />
-            </div>
-          </FormKit>
-        </FormKit>
-      </div>
-      <div v-else-if="isSuccess" class="my-4">
-        <h4>
-          Thank you for your submission!!
-        </h4>
-      </div>
+    <div v-if="!isLoggedIn" class="text-center">
+      <h2 class="my-4">
+        Add your camp's location
+      </h2>
+      <p>
+        Please
+        <NuxtLink to="/login" class="text-teal-600 underline">log in</NuxtLink>
+        to add or update a camp's location on the map.
+      </p>
+    </div>
 
-      <span>The map will be launching soon! Thank you for your patience while we build the next iteration of The Unofficial BRC Map</span>
-      <br><br>
-      <span>Don't see your camp on the list? Don't worry! We will be adding a form to add your own camp's soon!</span>
+    <div v-else-if="!isSuccess">
+      <FormKit type="form" @submit="addCampLocation">
+        <FormKit v-model="campForm" type="group">
+          <h2 class="my-4">
+            Use the form below to add your camp's location!
+          </h2>
+          <FormKit
+            type="select"
+            placeholder="Select"
+            name="id"
+            label="Camp Name"
+            validation="required"
+            :options="CAMP_OPTIONS"
+          />
+          <FormKit
+            type="select"
+            placeholder="Select"
+            name="addressType"
+            label="Address Type"
+            help="Is your camp located on a letter or a number street, or within Center Camp Plaza/Rod's Ring Road?"
+            validation="required"
+            :options="[
+              { label: 'Letter', value: 'Letter' },
+              { label: 'Number', value: 'Number' },
+              { label: 'Center Camp/Rods Ring Road', value: 'Center Camp Plaza' },
+            ]"
+          />
+          <FormKit
+            type="select"
+            placeholder="Select"
+            name="address"
+            label="Address"
+            validation="required"
+            :options="addressSelection"
+          />
+        </FormKit>
+      </FormKit>
+      <span v-if="isLoading">Saving…</span>
+      <span v-if="isError" class="text-red-600">An error occurred: {{ error }}</span>
+    </div>
+
+    <div v-else class="my-4">
+      <h4>Thank you — your camp's location is on the map!</h4>
     </div>
   </div>
-  <span v-if="error">An error occurred: {{ error }}</span>
-  <!-- <pre>campForm: {{ campForm }}</pre>
-  <pre>CAMP_OPTIONS: {{ CAMP_OPTIONS }}</pre> -->
 </template>
