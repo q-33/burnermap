@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
 import { centerCampPoint, cityGridGeoJson, manPoint } from '~~/lib/brc/cityGeoJson'
+
+// Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
+// MapLibre is dynamically imported in onMounted so it never loads during SSR.
+// (.client components break template refs / onMounted DOM access in Nuxt.)
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
 const props = defineProps<{ camps: CampPin[], focus?: { lat: number, lng: number } | null }>()
 const emit = defineEmits<{ position: [{ lat: number, lng: number }] }>()
 
-const el = ref<HTMLDivElement>()
-let map: maplibregl.Map | undefined
+const el = useTemplateRef<HTMLDivElement>('mapEl')
+let map: MlMap | undefined
 
 function campsGeoJson(): GeoJSON.FeatureCollection {
   return {
@@ -22,9 +26,12 @@ function campsGeoJson(): GeoJSON.FeatureCollection {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick()
   if (!el.value)
     return
+  const maplibregl = (await import('maplibre-gl')).default
+
   map = new maplibregl.Map({
     container: el.value,
     // tile-free style: the playa is featureless, so we draw only the city grid
@@ -35,7 +42,7 @@ onMounted(() => {
       layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#d8c9a3' } }],
     },
     center: manPoint,
-    zoom: 13.2,
+    zoom: 13.4,
     attributionControl: false,
   })
 
@@ -53,7 +60,6 @@ onMounted(() => {
   map.on('load', () => {
     if (!map)
       return
-    // city grid
     map.addSource('grid', { type: 'geojson', data: cityGridGeoJson() })
     // trash fence (city boundary)
     map.addLayer({
@@ -83,7 +89,7 @@ onMounted(() => {
       type: 'symbol',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'street-label'],
-      minzoom: 13.5,
+      minzoom: 12.8,
       layout: {
         'text-field': ['get', 'name'],
         'text-size': 11,
@@ -133,11 +139,11 @@ onMounted(() => {
     })
     map.on('click', 'camps', (e) => {
       const f = e.features?.[0]
-      if (f) {
+      if (f && map) {
         new maplibregl.Popup()
           .setLngLat((f.geometry as any).coordinates)
           .setHTML(`<b>${f.properties?.name}</b><br>${f.properties?.address ?? ''}`)
-          .addTo(map!)
+          .addTo(map)
       }
     })
   })
@@ -145,7 +151,7 @@ onMounted(() => {
 
 // keep camp pins in sync
 watch(() => props.camps, () => {
-  const src = map?.getSource('camps') as maplibregl.GeoJSONSource | undefined
+  const src = map?.getSource('camps') as GeoJSONSource | undefined
   src?.setData(campsGeoJson())
 }, { deep: true })
 
@@ -159,5 +165,5 @@ onBeforeUnmount(() => map?.remove())
 </script>
 
 <template>
-  <div ref="el" class="size-full" />
+  <div ref="mapEl" class="size-full" />
 </template>

@@ -18,7 +18,7 @@ const alumni = [
   <UContainer class="max-w-3xl py-12 sm:py-16">
     <div class="mb-10">
       <UBadge color="primary" variant="subtle" class="mb-4">Black Rock City {{ CITY_YEAR }} · Unofficial</UBadge>
-      <h1 class="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+      <h1 class="font-display text-4xl font-bold uppercase tracking-tight sm:text-5xl">
         About BurnerMap
       </h1>
       <p class="mt-4 text-lg text-(--ui-text-muted)">

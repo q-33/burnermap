@@ -138,16 +138,18 @@ const campOptions = computed(() => [
 
 <template>
   <div class="relative h-dvh w-dvw overflow-hidden">
-    <ClientOnly>
-      <PlayaMap :camps="pins" :focus="focus" class="absolute inset-0" @position="onPosition" />
-    </ClientOnly>
+    <div class="absolute inset-0">
+      <ClientOnly>
+        <PlayaMap :camps="pins" :focus="focus" class="size-full" @position="onPosition" />
+      </ClientOnly>
+    </div>
 
     <!-- floating top bar -->
     <div class="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
       <div class="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#26211a]/85 p-1 pl-3 text-white shadow-lg backdrop-blur-xl">
         <NuxtLink to="/" class="mr-1 flex items-center gap-1.5">
           <UIcon name="i-lucide-flame" class="size-4 text-primary" />
-          <span class="font-display text-sm font-bold">BurnerMap</span>
+          <span class="font-display text-sm font-bold uppercase tracking-wide">BurnerMap</span>
         </NuxtLink>
         <UButton to="/camps" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Camps</UButton>
         <UButton to="/about" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">About</UButton>

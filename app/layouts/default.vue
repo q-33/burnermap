@@ -22,7 +22,7 @@ async function logout() {
           <span class="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/30">
             <UIcon name="i-lucide-flame" class="size-5" />
           </span>
-          <span class="font-display text-lg font-bold tracking-tight">Burner<span class="text-primary">Map</span></span>
+          <span class="font-display text-lg font-bold uppercase tracking-wide">Burner<span class="text-primary">Map</span></span>
         </NuxtLink>
 
         <nav class="hidden items-center gap-1 sm:flex">

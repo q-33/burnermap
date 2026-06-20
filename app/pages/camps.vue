@@ -36,7 +36,7 @@ useHead({ title: 'Camps — BurnerMap' })
     <div class="mb-6">
       <div class="flex items-end justify-between gap-4">
         <div>
-          <h1 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">Camps</h1>
+          <h1 class="font-display text-3xl font-bold uppercase tracking-tight sm:text-4xl">Camps</h1>
           <p class="mt-1 text-(--ui-text-muted)">Browse and search theme camps placed on the map.</p>
         </div>
         <UBadge color="neutral" variant="subtle" class="shrink-0">{{ camps?.length ?? 0 }} shown</UBadge>
