@@ -135,6 +135,29 @@ function handleZoom(zoom: number) {
 }
 
 const polygonOptions = { onEachFeature }
+
+// Render a pin for every camp location that has coordinates, so all camps show
+// on load (not only after clicking their block). Re-runs when data changes.
+let campLayer: L.LayerGroup | undefined
+function renderAllCampMarkers() {
+  const m = map.value
+  if (!m)
+    return
+  if (!campLayer)
+    campLayer = L.layerGroup().addTo(m)
+  campLayer.clearLayers()
+  campStore.data?.forEach((camp: any) => {
+    camp.locations?.forEach((loc: any) => {
+      if (loc.gps_latitude && loc.gps_longitude) {
+        L.marker([loc.gps_latitude, loc.gps_longitude], { icon: markerIcon })
+          .bindPopup(`<b>${camp.name}</b><br>${loc.string ?? ''}`)
+          .addTo(campLayer!)
+      }
+    })
+  })
+}
+
+watch([map, () => campStore.data], renderAllCampMarkers, { deep: true })
 </script>
 
 <template>
