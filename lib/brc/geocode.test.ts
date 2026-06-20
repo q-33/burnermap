@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CITY_YEAR,
+  STREET_NAMES,
   addressToLatLng,
   describeLatLng,
   formatAddress,
+  formatAddressNamed,
   latLngToAddress,
   parseAddress,
+  streetName,
 } from './geocode'
 
 // Real 2023 block centroids (from Polygons.json) used as ground truth.
@@ -76,9 +80,28 @@ describe('parse / format', () => {
   })
 })
 
+describe('2026 street names', () => {
+  it('is the 2026 city', () => {
+    expect(CITY_YEAR).toBe(2026)
+    expect(Object.keys(STREET_NAMES)).toHaveLength(12) // Esplanade + A..K
+  })
+  it('maps letters to themed names', () => {
+    expect(streetName('E')).toBe('Eternal')
+    expect(streetName('A')).toBe('Ararat')
+    expect(streetName('K')).toBe('Kundalini')
+    expect(streetName('Esplanade')).toBe('Esplanade')
+  })
+  it('falls back to the letter for unknown streets', () => {
+    expect(streetName('Z')).toBe('Z')
+  })
+  it('formatAddressNamed uses the themed name', () => {
+    expect(formatAddressNamed({ time: 7.5, street: 'E' })).toBe('7:30 & Eternal')
+  })
+})
+
 describe('describeLatLng', () => {
-  it('gives a human readout near a known block', () => {
+  it('gives a human readout with the themed street name', () => {
     const e = describeLatLng({ lat: 40.784919, lng: -119.218287 })
-    expect(e).toBe('near 7:30 & E')
+    expect(e).toBe('near 7:30 & Eternal')
   })
 })

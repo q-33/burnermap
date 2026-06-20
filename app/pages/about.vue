@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { CITY_YEAR, STREET_NAMES } from '~~/lib/brc/geocode'
+
 useHead({ title: 'About — BurnerMap' })
+
+const streets = Object.entries(STREET_NAMES).filter(([k]) => k !== 'Esplanade')
 
 const team = ['Crockett! (Vince Ferhino — Soon To Be Infamous)', 'Pee Pee La Poo (Trashistan)']
 const alumni = [
@@ -13,7 +17,7 @@ const alumni = [
 <template>
   <UContainer class="max-w-3xl py-12 sm:py-16">
     <div class="mb-10">
-      <UBadge color="primary" variant="subtle" class="mb-4">Unofficial · Community-built</UBadge>
+      <UBadge color="primary" variant="subtle" class="mb-4">Black Rock City {{ CITY_YEAR }} · Unofficial</UBadge>
       <h1 class="font-display text-4xl font-bold tracking-tight sm:text-5xl">
         About BurnerMap
       </h1>
@@ -46,6 +50,19 @@ const alumni = [
         </p>
       </div>
     </UCard>
+
+    <section class="mt-10">
+      <h2 class="font-display mb-1 text-lg font-semibold text-primary">{{ CITY_YEAR }} streets — “Axis Mundi”</h2>
+      <p class="mb-3 text-sm text-(--ui-text-muted)">
+        This year's radial streets are named for notional centers of the world. We show these names
+        across the map; addresses still use the clock + street letter.
+      </p>
+      <div class="flex flex-wrap gap-1.5">
+        <UBadge v-for="[letter, name] in streets" :key="letter" color="neutral" variant="subtle">
+          {{ letter }} · {{ name }}
+        </UBadge>
+      </div>
+    </section>
 
     <div class="mt-12 grid gap-8 sm:grid-cols-2">
       <section>

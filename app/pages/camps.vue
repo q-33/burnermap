@@ -1,5 +1,14 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
+import { formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
+
+// "7:30 & E" -> "7:30 & Eternal" (2026 themed names); falls back to raw string
+function namedAddress(s: string | null | undefined): string | null {
+  if (!s)
+    return null
+  const a = parseAddress(s)
+  return a ? formatAddressNamed(a) : s
+}
 
 interface Loc { addressString: string | null, gpsLatitude: number | null, gpsLongitude: number | null, createdAt: string }
 interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, locations: Loc[] }
@@ -49,7 +58,7 @@ useHead({ title: 'Camps — BurnerMap' })
           <div>
             <h2 class="font-semibold">{{ c.name }}</h2>
             <p v-if="currentLocation(c)?.addressString" class="text-sm text-primary">
-              📍 {{ currentLocation(c)?.addressString }}
+              📍 {{ namedAddress(currentLocation(c)?.addressString) }}
             </p>
             <p v-else class="text-sm text-(--ui-text-muted)">location not set</p>
           </div>

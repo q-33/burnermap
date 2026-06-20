@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { describeLatLng, formatAddress, latLngToAddress } from '~~/lib/brc/geocode'
+import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, latLngToAddress, parseAddress } from '~~/lib/brc/geocode'
+
+function namedAddress(s: string | null | undefined): string {
+  if (!s)
+    return ''
+  const a = parseAddress(s)
+  return a ? formatAddressNamed(a) : s
+}
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
@@ -21,7 +28,7 @@ const pins = computed<CampPin[]>(() =>
   (campsData.value ?? []).flatMap((c: any) =>
     (c.locations ?? [])
       .filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
-      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: l.addressString })),
+      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString) })),
   ),
 )
 
@@ -80,6 +87,9 @@ const dropBusy = ref(false)
 const currentAddress = computed(() =>
   position.value ? formatAddress(latLngToAddress(position.value)) : null,
 )
+const currentAddressNamed = computed(() =>
+  position.value ? formatAddressNamed(latLngToAddress(position.value)) : null,
+)
 const creatingNew = computed(() => selectedCampId.value === '')
 
 async function openDrop() {
@@ -99,7 +109,7 @@ async function dropPin() {
     if (creatingNew.value) {
       const camp: any = await $fetch('/api/camps', {
         method: 'POST',
-        body: { name: campName.value, year: new Date().getFullYear() },
+        body: { name: campName.value, year: CITY_YEAR },
       })
       campId = camp.id
     }
@@ -191,7 +201,7 @@ const campOptions = computed(() => [
       <template #body>
         <form class="space-y-3" @submit.prevent="dropPin">
           <p class="text-sm">
-            Location: <b>{{ currentAddress ?? '—' }}</b>
+            Location: <b>{{ currentAddressNamed ?? '—' }}</b>
           </p>
           <USelect
             v-if="myCamps && myCamps.length"

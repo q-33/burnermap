@@ -69,6 +69,21 @@ onMounted(() => {
       filter: ['==', ['get', 'kind'], 'spoke'],
       paint: { 'line-color': '#a89a78', 'line-width': 0.8 },
     })
+    // 2026 themed street names along the arcs
+    map.addLayer({
+      id: 'street-labels',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'street-label'],
+      minzoom: 13.5,
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-size': 11,
+        'text-rotate': -32,
+        'text-allow-overlap': false,
+      },
+      paint: { 'text-color': '#6b3018', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
+    })
     // the Man
     map.addSource('man', { type: 'geojson', data: { type: 'Point', coordinates: manPoint } })
     map.addLayer({ id: 'man', type: 'circle', source: 'man', paint: { 'circle-radius': 5, 'circle-color': '#b91c1c' } })

@@ -1,5 +1,5 @@
 import type { FeatureCollection } from 'geojson'
-import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng } from './geocode'
+import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, streetName } from './geocode'
 
 // Draw Black Rock City as GeoJSON purely from the parametric geocoder — no map
 // tiles required. Lettered streets become arcs; clock hours become radial spokes.
@@ -31,9 +31,18 @@ export function cityGridGeoJson(): FeatureCollection {
   for (const street of STREETS) {
     features.push({
       type: 'Feature',
-      properties: { kind: 'street', name: street },
+      properties: { kind: 'street', letter: street, name: streetName(street) },
       geometry: { type: 'LineString', coordinates: arcForStreet(street) },
     })
+    // a label anchored near the 9:45 end of the arc (as on the official plan)
+    const label = addressToLatLng({ time: 9.75, street })
+    if (label) {
+      features.push({
+        type: 'Feature',
+        properties: { kind: 'street-label', letter: street, name: streetName(street) },
+        geometry: { type: 'Point', coordinates: [label.lng, label.lat] },
+      })
+    }
   }
 
   for (let h = CITY_TIME_MIN; h <= CITY_TIME_MAX; h += 0.5) {

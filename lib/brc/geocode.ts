@@ -45,6 +45,30 @@ export const STREET_RADII: Record<string, number> = {
 export const CITY_TIME_MIN = 2
 export const CITY_TIME_MAX = 10
 
+// Current Black Rock City year + themed street names. The 2026 theme is
+// "Axis Mundi" — lettered streets are named after notional centers of the world.
+// Letters stay the canonical key (stored/queried); names are for display.
+export const CITY_YEAR = 2026
+export const STREET_NAMES: Record<string, string> = {
+  Esplanade: 'Esplanade',
+  A: 'Ararat',
+  B: 'Bodhi',
+  C: 'Chomolungma',
+  D: 'Delphi',
+  E: 'Eternal',
+  F: 'Fulcrum',
+  G: 'Great Oak',
+  H: 'Heiau',
+  I: 'Iroko',
+  J: 'Jiba',
+  K: 'Kundalini',
+}
+
+/** Themed street name for a letter (e.g. "E" -> "Eternal"), falling back to the letter. */
+export function streetName(letter: string): string {
+  return STREET_NAMES[letter] ?? letter
+}
+
 const M_PER_DEG_LAT = 111320
 const mPerDegLng = (lat: number) => M_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180)
 const toRad = (d: number) => (d * Math.PI) / 180
@@ -117,10 +141,15 @@ export function formatAddress({ time, street }: BrcAddress, roundToMinutes = 15)
   return `${h}:${String(min).padStart(2, '0')} & ${street}`
 }
 
-/** Human readout for a GPS fix, e.g. "near 7:30 & E". */
+/** Same as formatAddress but with the themed street name, e.g. "7:30 & Eternal". */
+export function formatAddressNamed(addr: BrcAddress, roundToMinutes = 15): string {
+  return formatAddress({ ...addr, street: streetName(addr.street) }, roundToMinutes)
+}
+
+/** Human readout for a GPS fix, e.g. "near 7:30 & Eternal". */
 export function describeLatLng(point: LatLng): string {
   const addr = latLngToAddress(point)
   if (addr.time < CITY_TIME_MIN - 0.5 || addr.time > CITY_TIME_MAX + 0.5)
     return 'in the open playa'
-  return `near ${formatAddress(addr)}`
+  return `near ${formatAddressNamed(addr)}`
 }
