@@ -1,85 +1,64 @@
-<p align="center">
-<img src="https://user-images.githubusercontent.com/11247099/140462375-7b7ac4db-35b7-453c-8a05-13d8d20282c4.png" width="600"/>
-</p>
+# 🔥 BurnerMap
 
-<h2 align="center">
-<a href="https://github.com/antfu/vitesse">Vitesse</a> for Nuxt 3
-</h2><br>
+[![CI](https://github.com/q-33/burnermap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/q-33/burnermap/actions/workflows/ci.yml)
 
-<pre align="center">
-🧪 Working in Progress
-</pre>
+Find your people on the playa. An unofficial, community map of **Black Rock City** —
+mark your camp's location before you arrive and update it once you have service on playa.
 
-<p align="center">
-<br>
-<a href="https://vitesse-nuxt3.netlify.app/">🖥 Online Preview</a>
-<br><br>
-<a href="https://stackblitz.com/github/antfu/vitesse-nuxt3"><img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt=""></a>
-</p>
+**Live: [burnermap.org](https://burnermap.org)**
 
-## Features
+> Unofficial map. Pins are approximate and do not equal reserved space. Only Burning Man
+> Placement determines camp locations and only the ARTery determines art placement.
 
-- 💚 [Nuxt 3](https://nuxt.com/) - SSR, ESR, File-based routing, components auto importing, modules, etc.
+## What it does
 
-- ⚡️ Vite - Instant HMR.
+- 🗺️ **Tile-free BRC map** — the city is drawn from a parametric geocoder, so it renders
+  the street grid (and works) without any map provider.
+- 📍 **Mark & find camps** — log in, drop your camp at your GPS location; it's geocoded to a
+  Black Rock City address and shown to everyone.
+- 🧭 **Where am I** — live GPS on the city grid with a reverse-geocoded readout
+  (e.g. _"near 7:30 & Eternal"_).
+- 🔎 **Browse & search** camps (Postgres-native, no external index).
+- 🏙️ **Current-year aware** — 2026 themed street names (_Axis Mundi_: Ararat → Kundalini).
 
-- 🎨 [UnoCSS](https://github.com/unocss/unocss) - The instant on-demand atomic CSS engine.
+## Stack
 
-- 😃 Use icons from any icon sets in Pure CSS, powered by [UnoCSS](https://github.com/unocss/unocss).
+| | |
+|---|---|
+| Frontend | [Nuxt 4](https://nuxt.com) + [Nuxt UI](https://ui.nuxt.com) (Reka + Tailwind) |
+| Map | [MapLibre GL](https://maplibre.org) |
+| API / auth | Nitro server routes + [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) |
+| Data | [Drizzle ORM](https://orm.drizzle.team) → DigitalOcean **Postgres + PostGIS** |
+| Geocoder | `lib/brc` — parametric BRC address ⇄ lat/lng (pure TS, tested) |
+| Hosting | DigitalOcean App Platform (Node service) |
 
-- 🔥 The `<script setup>` syntax.
-
-- 🍍 [State Management via Pinia](https://github.com/vuejs/pinia), see [./composables/user.ts](./composables/user.ts).
-
-- 📑 [Layout system](./layouts).
-
-- 📥 APIs auto importing - for Composition API, VueUse and custom composables.
-
-- 🏎 Zero-config cloud functions and deploy.
-
-- 🦾 TypeScript, of course.
-
-- 📲 [PWA](https://github.com/vite-pwa/nuxt) with offline support and auto update behavior.
-
-
-## Plugins
-
-### Nuxt Modules
-
-- [VueUse](https://github.com/vueuse/vueuse) - collection of useful composition APIs.
-- [ColorMode](https://github.com/nuxt-modules/color-mode) - dark and Light mode with auto detection made easy with Nuxt.
-- [UnoCSS](https://github.com/unocss/unocss) - the instant on-demand atomic CSS engine.
-- [Pinia](https://github.com/vuejs/pinia) - intuitive, type safe, light and flexible Store for Vue.
-- [VitePWA](https://github.com/vite-pwa/nuxt) - zero-config PWA Plugin for Nuxt 3.
-- [DevTools](https://github.com/nuxt/devtools) - unleash Nuxt Developer Experience.
-
-## IDE
-
-We recommend using [VS Code](https://code.visualstudio.com/) with [Volar](https://github.com/johnsoncodehk/volar) to get the best experience (You might want to disable Vetur if you have it).
-
-## Variations
-
-- [vitesse](https://github.com/antfu/vitesse) - Opinionated Vite Starter Template
-- [vitesse-lite](https://github.com/antfu/vitesse-lite) - Lightweight version of Vitesse
-- [vitesse-nuxt-bridge](https://github.com/antfu/vitesse-nuxt-bridge) - Vitesse for Nuxt 2 with Bridge
-- [vitesse-webext](https://github.com/antfu/vitesse-webext) - WebExtension Vite starter template
-
-## Try it now!
-
-### Online
-
-<a href="https://stackblitz.com/github/antfu/vitesse-nuxt3"><img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt=""></a>
-
-### GitHub Template
-
-[Create a repo from this template on GitHub](https://github.com/antfu/vitesse-nuxt3/generate).
-
-### Clone to local
-
-If you prefer to do it manually with the cleaner git history
+## Develop
 
 ```bash
-npx degit antfu/vitesse-nuxt3 my-nuxt3-app
-cd my-nuxt3-app
-pnpm i # If you don't have pnpm installed, run: npm install -g pnpm
+pnpm install
+
+# .env (gitignored) needs:
+#   DATABASE_URL=postgresql://…           # Postgres with PostGIS
+#   NUXT_SESSION_PASSWORD=…               # 32+ char session secret (auto-added in dev)
+
+pnpm db:migrate   # apply db/migrations/0001_init.sql
+pnpm dev          # http://localhost:3000
 ```
+
+## Verify
+
+```bash
+pnpm test         # vitest — geocoder + city-grid
+pnpm typecheck    # nuxt typecheck
+pnpm build        # production (Nitro Node) build
+```
+
+CI runs all three on every push to `main` (see the badge above).
+
+## The BRC geocoder
+
+`lib/brc/geocode.ts` models Black Rock City as a polar city (the Man at center, a
+30°/hour clock bearing, concentric lettered streets) and converts addresses to
+coordinates with no shipped per-year geometry. To roll to a new year, update
+`STREET_NAMES` + `CITY_YEAR` (and only refit the radii if the city plan's geometry
+actually changes).
