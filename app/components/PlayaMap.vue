@@ -120,6 +120,21 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'gate-road'],
       paint: { 'line-color': '#1c2733', 'line-width': 1.6 },
     })
+    map.addLayer({
+      id: 'gate-road-label',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'gate-road'],
+      minzoom: 12.8,
+      layout: {
+        'text-field': 'Gate Road',
+        'symbol-placement': 'line',
+        'symbol-spacing': 220,
+        'text-size': 10,
+        'text-letter-spacing': 0.08,
+      },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
+    })
     // portals: open plaza circles. The fill-mask erases the blocks/grid/avenues
     // underneath so the circles read as clear open plazas (no lines through them).
     map.addLayer({
