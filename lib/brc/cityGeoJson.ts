@@ -32,11 +32,17 @@ function block(rIn: number, rOut: number, t0: number, t1: number): Feature {
   return { type: 'Feature', properties: { kind: 'block' }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
-// Center Camp sits on the 6:00 axis (the gate road), centred between A and B.
+// Center Camp geometry (official 2026): the Café Canopy is 2,999 ft (914 m) from
+// the Man on the 6:00 axis. Rod's Ring Road circles it; the ring is sized so its
+// inner edge meets the Esplanade (762 m) — that's the portal opening onto the
+// open playa. So the plaza spans the Esplanade out to ~C street.
+const CANOPY_M = 914
+const CENTER_CAMP_R = CANOPY_M - STREET_RADII.Esplanade! // inner edge = Esplanade
+
 // A getter (not a module-load const) so it re-derives after the golden spike is
 // calibrated at runtime.
 export function getCenterCampPoint(): [number, number] {
-  return toLngLat(radialPoint(6, (STREET_RADII.A! + STREET_RADII.B!) / 2))
+  return toLngLat(radialPoint(6, CANOPY_M))
 }
 // Official 2026 trash-fence pentagon (the 9.23-mile perimeter), stored as
 // offsets (Δlng, Δlat) from the golden spike so the fence tracks the city center
@@ -108,12 +114,16 @@ export function cityGridGeoJson(): FeatureCollection {
   push('avenue', { type: 'LineString', coordinates: circleRing(radialPoint(12, 900), 45) })
   push('avenue', { type: 'LineString', coordinates: circleRing(MAN, 42) })
 
-  // 5. 6:00 gate road — from the Man out through Center Camp to the gate
-  push('gate-road', { type: 'LineString', coordinates: radial(6, 0, 2350) })
+  // 5. The 6:00 axis: an inner promenade from the Man to Center Camp, then the
+  // road resumes OUTSIDE Center Camp and runs out to the gate. The road rings
+  // Center Camp via Rod's Ring Road (the portal circle below) — it never cuts
+  // straight through the plaza.
+  push('avenue', { type: 'LineString', coordinates: radial(6, 0, CANOPY_M - CENTER_CAMP_R) })
+  push('gate-road', { type: 'LineString', coordinates: radial(6, CANOPY_M + CENTER_CAMP_R, 2350) })
 
   // 6. Portals: Center Camp (Rod's Ring Road) + the 3:00/9:00 and 4:30/7:30 plazas
   const portals: { name: string, center: [number, number], radiusM: number }[] = [
-    { name: 'Center Camp', center: getCenterCampPoint(), radiusM: 100 },
+    { name: 'Center Camp', center: getCenterCampPoint(), radiusM: CENTER_CAMP_R },
     { name: '3:00 Plaza', center: toLngLat(radialPoint(3, STREET_RADII.D!)), radiusM: 78 },
     { name: '9:00 Plaza', center: toLngLat(radialPoint(9, STREET_RADII.D!)), radiusM: 78 },
     { name: '4:30 Plaza', center: toLngLat(radialPoint(4.5, STREET_RADII.G!)), radiusM: 76 },
