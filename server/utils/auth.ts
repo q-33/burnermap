@@ -24,6 +24,14 @@ export async function requireGpe(event: H3Event): Promise<SessionUser> {
   return user
 }
 
+// Require an admin — role assignment + content moderation.
+export async function requireAdmin(event: H3Event): Promise<SessionUser> {
+  const user = await requireUser(event)
+  if (user.role !== 'admin')
+    throw createError({ statusCode: 403, statusMessage: 'Admin access required' })
+  return user
+}
+
 // Like requireUser, but returns null instead of throwing when not logged in.
 // For endpoints whose response varies by viewer (e.g. owner sees pending items).
 export async function getOptionalUser(event: H3Event): Promise<SessionUser | null> {

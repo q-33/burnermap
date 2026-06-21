@@ -112,18 +112,20 @@ export const locations = pgTable('locations', {
 ])
 
 // --- Relations (for db.query.* relational selects) -------------------------
-export const campsRelations = relations(camps, ({ many }) => ({
+export const campsRelations = relations(camps, ({ many, one }) => ({
   locations: many(locations),
   events: many(events),
+  owner: one(users, { fields: [camps.ownerId], references: [users.id] }),
 }))
 
 export const eventsRelations = relations(events, ({ one }) => ({
   camp: one(camps, { fields: [events.campId], references: [camps.id] }),
 }))
 
-export const artRelations = relations(art, ({ many }) => ({
+export const artRelations = relations(art, ({ many, one }) => ({
   locations: many(locations),
   contributions: many(artContributions),
+  owner: one(users, { fields: [art.ownerId], references: [users.id] }),
 }))
 
 export const artContributionsRelations = relations(artContributions, ({ one }) => ({

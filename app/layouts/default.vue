@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { loggedIn, user } = useUserSession()
 
-const links = [
+const links = computed(() => [
   { label: 'Map', to: '/', icon: 'i-lucide-map' },
   { label: 'Camps', to: '/camps', icon: 'i-lucide-tent' },
   { label: 'Art', to: '/art', icon: 'i-lucide-palette' },
@@ -9,7 +9,8 @@ const links = [
   { label: 'Gate', to: '/gate', icon: 'i-lucide-traffic-cone' },
   { label: 'Guide', to: '/guide', icon: 'i-lucide-compass' },
   { label: 'About', to: '/about', icon: 'i-lucide-info' },
-]
+  ...((user.value as any)?.role === 'admin' ? [{ label: 'Admin', to: '/admin', icon: 'i-lucide-shield' }] : []),
+])
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })

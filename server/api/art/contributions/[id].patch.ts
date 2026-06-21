@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { artContributions } from '../../../db/schema'
 import { artContributionModerateSchema } from '../../../utils/validation'
 
-// Owner-of-the-artwork only: publish or hide a submitted contribution.
+// The artwork's owner OR an admin: publish or hide a submitted contribution.
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id)
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   })
   if (!row)
     throw createError({ statusCode: 404, statusMessage: 'Contribution not found' })
-  if (row.art?.ownerId !== user.id)
+  if (row.art?.ownerId !== user.id && user.role !== 'admin')
     throw createError({ statusCode: 403, statusMessage: 'Not your artwork' })
 
   const [updated] = await db

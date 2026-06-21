@@ -60,6 +60,11 @@ export const eventSchema = z.object({
   message: 'End time must be after the start time',
 })
 
+// Admin: set a user's role.
+export const roleSchema = z.object({
+  role: z.enum(['user', 'gpe', 'admin']),
+})
+
 // A GPE-posted Gate Road condition for one direction.
 export const gateConditionSchema = z.object({
   direction: z.enum(['inbound', 'exodus']),
