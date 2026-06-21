@@ -39,7 +39,7 @@ onMounted(async () => {
       version: 8,
       glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: {},
-      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#d8c9a3' } }],
+      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f6f2ea' } }],
     },
     center: manPoint,
     zoom: 13.4,
@@ -68,45 +68,36 @@ onMounted(async () => {
     if (!map)
       return
     map.addSource('grid', { type: 'geojson', data: cityGridGeoJson() })
-    // blue camping band (placed-camp blocks), as on the official plan
+    // city blocks — vivid blue cells (white street channels are the gaps between)
     map.addLayer({
-      id: 'camping',
+      id: 'blocks',
       type: 'fill',
       source: 'grid',
-      filter: ['==', ['get', 'kind'], 'camping'],
-      paint: { 'fill-color': '#1f9fda', 'fill-opacity': 0.26 },
+      filter: ['==', ['get', 'kind'], 'block'],
+      paint: { 'fill-color': '#27a3df', 'fill-opacity': 0.9 },
     })
-    // trash fence (city boundary)
+    map.addLayer({
+      id: 'blocks-outline',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'block'],
+      paint: { 'line-color': '#1c2733', 'line-width': 0.5 },
+    })
+    // trash fence (red dashed pentagon)
     map.addLayer({
       id: 'fence',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'fence'],
-      paint: { 'line-color': '#c25617', 'line-width': 1.5, 'line-dasharray': [3, 3], 'line-opacity': 0.7 },
+      paint: { 'line-color': '#e1241a', 'line-width': 1.4, 'line-dasharray': [4, 3] },
     })
-    // 15-min radial block streets (thin)
-    map.addLayer({
-      id: 'radials',
-      type: 'line',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'radial'],
-      paint: { 'line-color': '#8a7d60', 'line-width': 0.6, 'line-opacity': 0.85 },
-    })
-    // concentric streets
-    map.addLayer({
-      id: 'streets',
-      type: 'line',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'street'],
-      paint: { 'line-color': '#5f5640', 'line-width': 1.3 },
-    })
-    // cardinal avenues + 12:00 promenade + the Man's circle
+    // cardinal avenues + 12:00 promenade + the Man's circle (black)
     map.addLayer({
       id: 'avenues',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'avenue'],
-      paint: { 'line-color': '#5f5640', 'line-width': 1.2 },
+      paint: { 'line-color': '#1c2733', 'line-width': 1.1 },
     })
     // 6:00 gate road
     map.addLayer({
@@ -114,7 +105,7 @@ onMounted(async () => {
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'gate-road'],
-      paint: { 'line-color': '#5f5640', 'line-width': 1.8 },
+      paint: { 'line-color': '#1c2733', 'line-width': 1.6 },
     })
     // portals: Center Camp / Rod's Ring Road + the 3:00, 9:00, 4:30 & 7:30 plazas
     map.addLayer({
@@ -122,7 +113,7 @@ onMounted(async () => {
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'portal'],
-      paint: { 'line-color': '#5f5640', 'line-width': 1.6 },
+      paint: { 'line-color': '#1c2733', 'line-width': 1.5 },
     })
     // walk-in camping boundary (orange dashed, right side)
     map.addLayer({
@@ -139,7 +130,7 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'walkin-label'],
       minzoom: 13,
       layout: { 'text-field': ['get', 'name'], 'text-size': 10, 'text-max-width': 6 },
-      paint: { 'text-color': '#b06a16', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
+      paint: { 'text-color': '#b06a16', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.5 },
     })
     map.addLayer({
       id: 'portal-labels',
@@ -148,9 +139,9 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'portal-label'],
       minzoom: 13.2,
       layout: { 'text-field': ['get', 'name'], 'text-size': 10 },
-      paint: { 'text-color': '#5c5340', 'text-halo-color': '#d8c9a3', 'text-halo-width': 1.5 },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
     })
-    // 2026 themed street names along the arcs
+    // 2026 themed street names (upper-left, as on the plan)
     map.addLayer({
       id: 'street-labels',
       type: 'symbol',
@@ -162,7 +153,7 @@ onMounted(async () => {
         'text-size': 11,
         'text-allow-overlap': false,
       },
-      paint: { 'text-color': '#6b3018', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
     })
     // landmarks: the Man + Center Camp
     map.addSource('landmarks', {
@@ -179,14 +170,14 @@ onMounted(async () => {
       id: 'landmark-dots',
       type: 'circle',
       source: 'landmarks',
-      paint: { 'circle-radius': 5, 'circle-color': '#b91c1c', 'circle-stroke-color': '#ece4d2', 'circle-stroke-width': 1.5 },
+      paint: { 'circle-radius': 4, 'circle-color': '#1c2733', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 },
     })
     map.addLayer({
       id: 'landmark-labels',
       type: 'symbol',
       source: 'landmarks',
       layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, -1.1], 'text-anchor': 'bottom' },
-      paint: { 'text-color': '#6b3018', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
     })
     // camp pins
     map.addSource('camps', { type: 'geojson', data: campsGeoJson() })
@@ -194,14 +185,14 @@ onMounted(async () => {
       id: 'camps',
       type: 'circle',
       source: 'camps',
-      paint: { 'circle-radius': 6, 'circle-color': '#1d4ed8', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+      paint: { 'circle-radius': 6, 'circle-color': '#d6336c', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
     })
     map.addLayer({
       id: 'camp-labels',
       type: 'symbol',
       source: 'camps',
       layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.2], 'text-anchor': 'top' },
-      paint: { 'text-color': '#1e293b', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#fff', 'text-halo-width': 1.6 },
     })
     map.on('click', 'camps', (e) => {
       const f = e.features?.[0]

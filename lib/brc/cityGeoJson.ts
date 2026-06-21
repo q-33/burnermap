@@ -1,27 +1,34 @@
-import type { FeatureCollection } from 'geojson'
+import type { Feature, FeatureCollection } from 'geojson'
 import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
 
-// Draw Black Rock City as GeoJSON purely from the parametric geocoder — no map
-// tiles required. Matches the official BRC 2026 plan: blue camping band, the
-// concentric streets, 15-min radial blocks, cardinal avenues, portals, gate road.
+// Render Black Rock City to match the official BRC 2026 plan: individual blue
+// camp blocks separated by white street channels, on a near-white ground.
+// Everything is generated from the parametric geocoder (real metres / coords).
 
 const STREETS = Object.keys(STREET_RADII)
 const OUTER = STREETS[STREETS.length - 1]! // Kundalini (K)
 
 const toLngLat = (p: { lat: number, lng: number }): [number, number] => [p.lng, p.lat]
+const HALF_STREET_M = 6 // half the street width → the gap between blocks
 
-function arcForStreet(street: string, tMin = CITY_TIME_MIN, tMax = CITY_TIME_MAX): [number, number][] {
+function arcAt(radiusM: number, tMin: number, tMax: number): [number, number][] {
   const pts: [number, number][] = []
-  for (let t = tMin; t <= tMax + 1e-9; t += 0.1) {
-    const ll = addressToLatLng({ time: t, street })
-    if (ll)
-      pts.push([ll.lng, ll.lat])
-  }
+  for (let t = tMin; t <= tMax + 1e-9; t += 0.1)
+    pts.push(toLngLat(radialPoint(t, radiusM)))
   return pts
 }
 
-function radial(time: number, fromM: number, toM: number): [number, number][] {
-  return [radialPoint(time, fromM), radialPoint(time, toM)].map(toLngLat)
+// One city block: an annular-sector cell between two streets and two radials,
+// inset by half a street width on each side to leave the white street channels.
+function block(rIn: number, rOut: number, t0: number, t1: number): Feature {
+  const ring: [number, number][] = []
+  const steps = 4
+  for (let s = 0; s <= steps; s++)
+    ring.push(toLngLat(radialPoint(t0 + ((t1 - t0) * s) / steps, rIn)))
+  for (let s = 0; s <= steps; s++)
+    ring.push(toLngLat(radialPoint(t1 - ((t1 - t0) * s) / steps, rOut)))
+  ring.push(ring[0]!)
+  return { type: 'Feature', properties: { kind: 'block' }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
 // Landmarks (real survey coordinates, [lng, lat]).
@@ -37,48 +44,52 @@ const TRASH_FENCE: [number, number][] = [
 ]
 
 export function cityGridGeoJson(): FeatureCollection {
-  const features: FeatureCollection['features'] = []
+  const features: Feature[] = []
   const push = (kind: string, geometry: any, props: Record<string, any> = {}) =>
     features.push({ type: 'Feature', properties: { kind, ...props }, geometry })
 
   const espRadius = STREET_RADII.Esplanade!
   const kRadius = STREET_RADII[OUTER]!
 
-  // 1. Blue camping band — placed-camp blocks, Esplanade -> Kundalini, 2:15–9:45.
-  const bandTMin = 2.15
-  const bandTMax = 9.85
-  const bandRing: [number, number][] = [
-    ...arcForStreet(OUTER, bandTMin, bandTMax),
-    ...arcForStreet('Esplanade', bandTMin, bandTMax).reverse(),
-  ]
-  bandRing.push(bandRing[0]!)
-  push('camping', { type: 'Polygon', coordinates: [bandRing] })
-
-  // 2. Trash fence
-  push('fence', { type: 'LineString', coordinates: TRASH_FENCE })
-
-  // 3. Concentric streets + their themed-name labels (upper-left, as on the plan)
-  for (const street of STREETS) {
-    push('street', { type: 'LineString', coordinates: arcForStreet(street) }, { letter: street, name: streetName(street) })
-    const label = addressToLatLng({ time: 9.75, street })
-    if (label)
-      push('street-label', { type: 'Point', coordinates: [label.lng, label.lat] }, { letter: street, name: streetName(street) })
+  // 1. City BLOCKS — blue cells, Esplanade→K, 2:00–10:00, 15-min columns.
+  const colMin = 2.0
+  const colMax = 9.75
+  for (let i = 0; i < STREETS.length - 1; i++) {
+    const rIn = STREET_RADII[STREETS[i]!]! + HALF_STREET_M
+    const rOut = STREET_RADII[STREETS[i + 1]!]! - HALF_STREET_M
+    if (rOut <= rIn)
+      continue
+    const rMid = (rIn + rOut) / 2
+    const tGap = (HALF_STREET_M / rMid) * (6 / Math.PI) // metres → clock-hours at rMid
+    for (let j = colMin; j < colMax - 1e-9; j += 0.25) {
+      const t0 = j + tGap
+      const t1 = j + 0.25 - tGap
+      if (t1 > t0)
+        features.push(block(rIn, rOut, t0, t1))
+    }
   }
 
-  // 4. Radial block streets every 15 minutes (Esplanade -> K)
-  for (let h = CITY_TIME_MIN; h <= CITY_TIME_MAX + 1e-9; h += 0.25)
-    push('radial', { type: 'LineString', coordinates: radial(h, espRadius, kRadius) })
+  // 2. Trash fence (red dashed pentagon)
+  push('fence', { type: 'LineString', coordinates: TRASH_FENCE })
 
-  // 5. Cardinal avenues through the Man + 12:00 promenade to its end circle
-  push('avenue', { type: 'LineString', coordinates: radial(9, espRadius, 0).concat(radial(3, 0, espRadius)) }) // 9↔3 through center
-  push('avenue', { type: 'LineString', coordinates: radial(12, 0, 900) }) // 12:00 promenade up
-  push('avenue', { type: 'LineString', coordinates: circleRing(radialPoint(12, 900), 45) }) // 12:00 end circle
-  push('avenue', { type: 'LineString', coordinates: circleRing(MAN, 42) }) // the Man's circle
+  // 3. Named-street labels (upper-left, as on the plan)
+  for (const street of STREETS) {
+    const label = addressToLatLng({ time: 9.78, street })
+    if (label)
+      push('street-label', { type: 'Point', coordinates: [label.lng, label.lat] }, { name: streetName(street) })
+  }
 
-  // 6. 6:00 gate road — from the Man out through Center Camp to the gate
+  // 4. Cardinal avenues through the Man, the 12:00 promenade + end circle, Man circle
+  const radial = (t: number, a: number, b: number) => [radialPoint(t, a), radialPoint(t, b)].map(toLngLat)
+  push('avenue', { type: 'LineString', coordinates: radial(9, espRadius, 0).concat(radial(3, 0, espRadius)) })
+  push('avenue', { type: 'LineString', coordinates: radial(12, 0, 900) })
+  push('avenue', { type: 'LineString', coordinates: circleRing(radialPoint(12, 900), 45) })
+  push('avenue', { type: 'LineString', coordinates: circleRing(MAN, 42) })
+
+  // 5. 6:00 gate road — from the Man out through Center Camp to the gate
   push('gate-road', { type: 'LineString', coordinates: radial(6, 0, 2350) })
 
-  // 7. Portals: Center Camp (Rod's Ring Road) + the 3:00/9:00 and 4:30/7:30 plazas
+  // 6. Portals: Center Camp (Rod's Ring Road) + the 3:00/9:00 and 4:30/7:30 plazas
   const portals: { name: string, center: [number, number], radiusM: number }[] = [
     { name: 'Center Camp', center: centerCampPoint, radiusM: 105 },
     { name: '3:00 Plaza', center: toLngLat(radialPoint(3, 1160)), radiusM: 80 },
@@ -92,11 +103,8 @@ export function cityGridGeoJson(): FeatureCollection {
       push('portal-label', { type: 'Point', coordinates: p.center }, { name: p.name })
   }
 
-  // 8. Walk-in camping (right side): orange boundary arc (just outside K) + labels
-  const boundary: [number, number][] = []
-  for (let t = 2.0; t <= 5.0 + 1e-9; t += 0.1)
-    boundary.push(toLngLat(radialPoint(t, kRadius + 90)))
-  push('walkin-boundary', { type: 'LineString', coordinates: boundary })
+  // 7. Walk-in camping (right side): orange boundary arc + two labels
+  push('walkin-boundary', { type: 'LineString', coordinates: arcAt(kRadius + 90, 2.0, 5.0) })
   for (const t of [2.3, 4.7])
     push('walkin-label', { type: 'Point', coordinates: toLngLat(radialPoint(t, 2050)) }, { name: 'Walk-in Camping' })
 

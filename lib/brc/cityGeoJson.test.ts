@@ -4,23 +4,19 @@ import { cityGridGeoJson, manPoint } from './cityGeoJson'
 describe('cityGridGeoJson', () => {
   const fc = cityGridGeoJson()
 
-  it('produces street arcs, radial blocks, the camping band, and named labels', () => {
-    const streets = fc.features.filter(f => f.properties?.kind === 'street')
-    const radials = fc.features.filter(f => f.properties?.kind === 'radial')
+  it('produces blue blocks, street-name labels, and the five portals', () => {
+    const blocks = fc.features.filter(f => f.properties?.kind === 'block')
     const labels = fc.features.filter(f => f.properties?.kind === 'street-label')
-    const camping = fc.features.filter(f => f.properties?.kind === 'camping')
     const portals = fc.features.filter(f => f.properties?.kind === 'portal')
-    expect(streets.length).toBe(12) // Esplanade + A..K
-    expect(radials.length).toBeGreaterThan(20) // every 15 min, 2:00–10:00
-    expect(labels.length).toBe(12)
-    expect(camping.length).toBe(1)
+    expect(blocks.length).toBeGreaterThan(200) // 11 ring bands × ~31 columns
+    expect(labels.length).toBe(12) // Esplanade + A..K
     expect(portals.length).toBe(5) // Center Camp + 3:00/9:00/4:30/7:30
-    expect(labels.find(l => l.properties?.letter === 'E')?.properties?.name).toBe('Eternal')
+    expect(labels.find(l => l.properties?.name === 'Eternal')).toBeTruthy()
   })
 
   it('contains no NaN coordinates', () => {
-    const lines = fc.features.filter(f => f.geometry.type === 'LineString')
-    const coords = lines.flatMap(f => (f.geometry as any).coordinates as [number, number][])
+    const polys = fc.features.filter(f => f.geometry.type === 'Polygon')
+    const coords = polys.flatMap(f => (f.geometry as any).coordinates[0] as [number, number][])
     expect(coords.length).toBeGreaterThan(0)
     expect(coords.every(([a, b]) => Number.isFinite(a) && Number.isFinite(b))).toBe(true)
   })

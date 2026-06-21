@@ -175,9 +175,10 @@ const campOptions = computed(() => [
     <div class="pointer-events-none absolute bottom-4 left-3 hidden rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-xl sm:block">
       <p class="mb-1 font-display font-semibold">Black Rock City {{ CITY_YEAR }}</p>
       <ul class="space-y-0.5 text-white/80">
-        <li><span class="mr-1.5 inline-block size-2 rounded-full bg-red-600 align-middle" />The Man · Center Camp</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#1d4ed8" />Camps</li>
-        <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#c25617" />Trash fence</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#27a3df" />Camp blocks</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#d6336c" />Camps</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full bg-white align-middle" />The Man · Center Camp</li>
+        <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
       </ul>
     </div>
 
