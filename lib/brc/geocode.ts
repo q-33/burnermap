@@ -25,8 +25,8 @@ export const MAN: LatLng = { lat: 40.786394, lng: -119.203492 }
 const BEARING_INTERCEPT = 40.253
 const BEARING_PER_HOUR = 29.98
 
-// centroid radius (metres) per street, innermost -> outermost
-export const STREET_RADII: Record<string, number> = {
+// Fitted centroid radius (metres) per street, innermost -> outermost.
+const RAW_RADII: Record<string, number> = {
   Esplanade: 792.2,
   A: 880.9,
   B: 980.4,
@@ -40,6 +40,18 @@ export const STREET_RADII: Record<string, number> = {
   J: 1721.0,
   K: 1778.9,
 }
+
+// The official plan compresses the deep-playa centre so the camp band looks
+// thicker. Pull the inner streets in (Esplanade → INNER_TARGET) while keeping
+// the outer ring fixed, remapping the rest proportionally, to match that look.
+const INNER_TARGET = 600
+const ESP_RAW = RAW_RADII.Esplanade!
+const K_RAW = RAW_RADII.K!
+const tighten = (r: number) => INNER_TARGET + ((r - ESP_RAW) * (K_RAW - INNER_TARGET)) / (K_RAW - ESP_RAW)
+
+export const STREET_RADII: Record<string, number> = Object.fromEntries(
+  Object.entries(RAW_RADII).map(([k, v]) => [k, tighten(v)]),
+)
 
 // city occupies roughly the 2:00–10:00 arc
 export const CITY_TIME_MIN = 2

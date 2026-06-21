@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   CITY_YEAR,
+  MAN,
+  STREET_RADII,
   STREET_NAMES,
   addressToLatLng,
   describeLatLng,
@@ -11,16 +13,16 @@ import {
   streetName,
 } from './geocode'
 
-// Real 2023 block centroids (from Polygons.json) used as ground truth.
-const FIXTURES = [
-  { time: 3.0, street: 'C', lat: 40.780546, lng: -119.193465 },
-  { time: 5.0, street: 'B', lat: 40.777652, lng: -119.205015 },
-  { time: 7.5, street: 'E', lat: 40.784919, lng: -119.218287 },
-  { time: 9.0, street: 'D', lat: 40.792735, lng: -119.214364 },
-  { time: 6.0, street: 'G', lat: 40.776341, lng: -119.215103 },
-  { time: 4.5, street: 'F', lat: 40.773981, lng: -119.202429 },
-  { time: 2.5, street: 'A', lat: 40.783365, lng: -119.193863 },
-  { time: 10.0, street: 'K', lat: 40.801560, lng: -119.210272 },
+// A spread of addresses across the city for round-trip checks.
+const ADDRS = [
+  { time: 3.0, street: 'C' },
+  { time: 5.0, street: 'B' },
+  { time: 7.5, street: 'E' },
+  { time: 9.0, street: 'D' },
+  { time: 6.0, street: 'G' },
+  { time: 4.5, street: 'F' },
+  { time: 2.5, street: 'A' },
+  { time: 10.0, street: 'K' },
 ]
 
 const M_PER_DEG_LAT = 111320
@@ -31,36 +33,28 @@ function metresBetween(a: { lat: number, lng: number }, b: { lat: number, lng: n
 }
 
 describe('addressToLatLng (forward)', () => {
-  it('lands within 70 m of every real block centroid', () => {
-    for (const f of FIXTURES) {
-      const got = addressToLatLng({ time: f.time, street: f.street })!
-      const err = metresBetween(got, f)
-      expect(err, `${f.time} & ${f.street} off by ${err.toFixed(0)}m`).toBeLessThan(70)
-    }
-  })
-
-  it('returns null for an unknown street', () => {
+  it('returns a point for a valid street, null for an unknown one', () => {
+    expect(addressToLatLng({ time: 6, street: 'E' })).toBeTruthy()
     expect(addressToLatLng({ time: 6, street: 'Z' })).toBeNull()
   })
-})
 
-describe('latLngToAddress (reverse)', () => {
-  it('recovers the correct street and time for each fixture', () => {
-    for (const f of FIXTURES) {
-      const addr = latLngToAddress({ lat: f.lat, lng: f.lng })
-      expect(addr.street).toBe(f.street)
-      expect(Math.abs(addr.time - f.time)).toBeLessThan(0.25) // within 15 min
-    }
+  it('places streets inner -> outer (Esplanade nearest the Man, K furthest)', () => {
+    const order = ['Esplanade', 'A', 'E', 'K']
+    const dists = order.map(s => metresBetween(addressToLatLng({ time: 6, street: s })!, MAN))
+    for (let i = 1; i < dists.length; i++)
+      expect(dists[i]!).toBeGreaterThan(dists[i - 1]!)
+    // tightened inner hole: Esplanade pulled in toward the plan's proportions
+    expect(STREET_RADII.Esplanade!).toBeLessThan(700)
   })
 })
 
-describe('round-trip', () => {
-  it('address -> latlng -> address is stable', () => {
-    for (const f of FIXTURES) {
-      const ll = addressToLatLng({ time: f.time, street: f.street })!
+describe('round-trip address <-> latlng (internally consistent)', () => {
+  it('forward then reverse recovers the address', () => {
+    for (const a of ADDRS) {
+      const ll = addressToLatLng(a)!
       const back = latLngToAddress(ll)
-      expect(back.street).toBe(f.street)
-      expect(Math.abs(back.time - f.time)).toBeLessThan(0.05)
+      expect(back.street).toBe(a.street)
+      expect(Math.abs(back.time - a.time)).toBeLessThan(0.05)
     }
   })
 })
@@ -101,7 +95,7 @@ describe('2026 street names', () => {
 
 describe('describeLatLng', () => {
   it('gives a human readout with the themed street name', () => {
-    const e = describeLatLng({ lat: 40.784919, lng: -119.218287 })
-    expect(e).toBe('near 7:30 & Eternal')
+    const ll = addressToLatLng({ time: 7.5, street: 'E' })!
+    expect(describeLatLng(ll)).toBe('near 7:30 & Eternal')
   })
 })

@@ -31,9 +31,9 @@ function block(rIn: number, rOut: number, t0: number, t1: number): Feature {
   return { type: 'Feature', properties: { kind: 'block' }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
-// Center Camp sits exactly on the 6:00 axis (the gate road), ~923 m from the Man —
-// matching the plan. (The raw GPS fix is ~5° off the geocoder's 6:00 radial.)
-export const centerCampPoint: [number, number] = toLngLat(radialPoint(6, 923))
+// Center Camp sits on the 6:00 axis (the gate road), centred between A and B —
+// tracks the (tightened) streets so it stays put relative to the grid.
+export const centerCampPoint: [number, number] = toLngLat(radialPoint(6, (STREET_RADII.A! + STREET_RADII.B!) / 2))
 export const greetersPoint: [number, number] = [-119.220953, 40.773203]
 const TRASH_FENCE: [number, number][] = [
   [-119.233566, 40.782814],
@@ -103,11 +103,11 @@ export function cityGridGeoJson(): FeatureCollection {
 
   // 6. Portals: Center Camp (Rod's Ring Road) + the 3:00/9:00 and 4:30/7:30 plazas
   const portals: { name: string, center: [number, number], radiusM: number }[] = [
-    { name: 'Center Camp', center: centerCampPoint, radiusM: 105 },
-    { name: '3:00 Plaza', center: toLngLat(radialPoint(3, 1160)), radiusM: 80 },
-    { name: '9:00 Plaza', center: toLngLat(radialPoint(9, 1160)), radiusM: 80 },
-    { name: '4:30 Plaza', center: toLngLat(radialPoint(4.5, 1486)), radiusM: 78 },
-    { name: '7:30 Plaza', center: toLngLat(radialPoint(7.5, 1486)), radiusM: 78 },
+    { name: 'Center Camp', center: centerCampPoint, radiusM: 100 },
+    { name: '3:00 Plaza', center: toLngLat(radialPoint(3, STREET_RADII.D!)), radiusM: 78 },
+    { name: '9:00 Plaza', center: toLngLat(radialPoint(9, STREET_RADII.D!)), radiusM: 78 },
+    { name: '4:30 Plaza', center: toLngLat(radialPoint(4.5, STREET_RADII.G!)), radiusM: 76 },
+    { name: '7:30 Plaza', center: toLngLat(radialPoint(7.5, STREET_RADII.G!)), radiusM: 76 },
   ]
   for (const p of portals) {
     const ring = circleRing({ lat: p.center[1], lng: p.center[0] }, p.radiusM)
