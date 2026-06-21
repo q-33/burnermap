@@ -207,6 +207,11 @@ const itemOptions = computed(() => [
       </ul>
     </div>
 
+    <!-- compass rose (map orientation is locked to bearing 45°) -->
+    <div class="pointer-events-none absolute bottom-20 right-4 sm:bottom-6">
+      <CompassRose />
+    </div>
+
     <!-- GPS readout pill (bottom center) -->
     <div class="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
       <div class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
