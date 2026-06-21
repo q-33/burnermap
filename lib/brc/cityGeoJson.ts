@@ -32,12 +32,13 @@ function block(rIn: number, rOut: number, t0: number, t1: number): Feature {
   return { type: 'Feature', properties: { kind: 'block' }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
-// Center Camp geometry (official 2026): the Café Canopy is 2,999 ft (914 m) from
-// the Man on the 6:00 axis. Rod's Ring Road circles it; the ring is sized so its
-// inner edge meets the Esplanade (762 m) — that's the portal opening onto the
-// open playa. So the plaza spans the Esplanade out to ~C street.
-const CANOPY_M = 914
-const CENTER_CAMP_R = CANOPY_M - STREET_RADII.Esplanade! // inner edge = Esplanade
+// Center Camp geometry, from the official surveyed plaza polygon (GIS): the
+// Center Camp Plaza is a 79 m-radius circle centred on the Café Canopy, 915 m
+// (2,999 ft) from the Man on the 6:00 axis. It does NOT touch the Esplanade —
+// the 6:00 promenade is the keyhole "stem" connecting the open playa out to the
+// round plaza. Rod's Ring Road is that plaza ring.
+const CANOPY_M = 915
+const CENTER_CAMP_R = 79
 
 // A getter (not a module-load const) so it re-derives after the golden spike is
 // calibrated at runtime.
@@ -129,25 +130,29 @@ export function cityGridGeoJson(): FeatureCollection {
   // Per the official 2026 measurements (plazas centred at 3,215 ft / 4,825 ft).
   const bRing = STREET_RADII.B!
   const gRing = STREET_RADII.G!
+  // All clock plazas are 30 m-radius circles per the surveyed GIS polygons.
+  const PR = 30
   const plazas: { time: number, ringM: number, radiusM: number, label?: string }[] = [
     // Bradbury (B) ring — labelled
-    { time: 3, ringM: bRing, radiusM: 92, label: '3:00 Plaza' },
-    { time: 9, ringM: bRing, radiusM: 92, label: '9:00 Plaza' },
-    { time: 4.5, ringM: bRing, radiusM: 66, label: '4:30 Plaza' },
-    { time: 7.5, ringM: bRing, radiusM: 66, label: '7:30 Plaza' },
+    { time: 3, ringM: bRing, radiusM: PR, label: '3:00 Plaza' },
+    { time: 9, ringM: bRing, radiusM: PR, label: '9:00 Plaza' },
+    { time: 4.5, ringM: bRing, radiusM: PR, label: '4:30 Plaza' },
+    { time: 7.5, ringM: bRing, radiusM: PR, label: '7:30 Plaza' },
     // Gibson (G) mid-city ring — unlabelled to avoid duplicate clock labels
-    { time: 3, ringM: gRing, radiusM: 74 },
-    { time: 9, ringM: gRing, radiusM: 74 },
-    { time: 4.5, ringM: gRing, radiusM: 70 },
-    { time: 6, ringM: gRing, radiusM: 70 },
-    { time: 7.5, ringM: gRing, radiusM: 70 },
+    { time: 3, ringM: gRing, radiusM: PR },
+    { time: 9, ringM: gRing, radiusM: PR },
+    { time: 4.5, ringM: gRing, radiusM: PR },
+    { time: 6, ringM: gRing, radiusM: PR },
+    { time: 7.5, ringM: gRing, radiusM: PR },
   ]
 
-  // Center Camp first (its own radius/centre).
+  // Center Camp first (its own radius/centre) — the round head of the keyhole.
   const cc = getCenterCampPoint()
   const ccRing = circleRing({ lat: cc[1], lng: cc[0] }, CENTER_CAMP_R)
   push('portal-fill', { type: 'Polygon', coordinates: [ccRing] }, { name: 'Center Camp' })
   push('portal', { type: 'LineString', coordinates: ccRing }, { name: 'Center Camp' })
+  // The Café canopy at its centre (the iconic inner ring).
+  push('portal', { type: 'LineString', coordinates: circleRing({ lat: cc[1], lng: cc[0] }, 18) }, { name: 'Café' })
 
   for (const p of plazas) {
     const c = radialPoint(p.time, p.ringM)
