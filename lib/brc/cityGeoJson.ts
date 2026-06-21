@@ -161,13 +161,24 @@ export function cityGridGeoJson(): FeatureCollection {
     { time: 7.5, ringM: gRing, radiusM: PR },
   ]
 
-  // Center Camp first (its own radius/centre) — the round head of the keyhole.
+  // Center Camp — a concentric bullseye, as seen from the air: the hexagonal
+  // Café canopy at the centre, the open café plaza, the Center Camp Plaza camp
+  // streets, all bounded by Rod's Ring Road (the big outer circle).
   const cc = getCenterCampPoint()
-  const ccRing = circleRing({ lat: cc[1], lng: cc[0] }, CENTER_CAMP_R)
-  push('portal-fill', { type: 'Polygon', coordinates: [ccRing] }, { name: 'Center Camp' })
-  push('portal', { type: 'LineString', coordinates: ccRing }, { name: 'Center Camp' })
-  // The Café canopy at its centre (the iconic inner ring).
-  push('portal', { type: 'LineString', coordinates: circleRing({ lat: cc[1], lng: cc[0] }, 18) }, { name: 'Café' })
+  const ccc = { lat: cc[1], lng: cc[0] }
+  // open the plaza (mask the underlying blocks) out to Rod's Ring Road
+  push('portal-fill', { type: 'Polygon', coordinates: [circleRing(ccc, CENTER_CAMP_R)] }, { name: 'Center Camp' })
+  push('portal', { type: 'LineString', coordinates: circleRing(ccc, CENTER_CAMP_R) }, { name: 'Center Camp' }) // Rod's Ring Road
+  push('portal', { type: 'LineString', coordinates: circleRing(ccc, 56) }) // outer camp-street ring
+  push('portal', { type: 'LineString', coordinates: circleRing(ccc, 34) }) // café-plaza ring
+  // six radial spokes (Center Camp's internal streets) from the plaza ring out
+  // to Rod's Ring Road — vertices of concentric rings share the same bearings.
+  const spokeInner = circleRing(ccc, 34, 6)
+  const spokeOuter = circleRing(ccc, CENTER_CAMP_R, 6)
+  for (let s = 0; s < 6; s++)
+    push('portal', { type: 'LineString', coordinates: [spokeInner[s]!, spokeOuter[s]!] })
+  // hexagonal Café canopy at the centre
+  push('portal', { type: 'LineString', coordinates: circleRing(ccc, 13, 6) }, { name: 'Café' })
 
   for (const p of plazas) {
     const c = radialPoint(p.time, p.ringM)

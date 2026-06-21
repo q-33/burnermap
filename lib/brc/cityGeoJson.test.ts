@@ -10,7 +10,7 @@ describe('cityGridGeoJson', () => {
     const portals = fc.features.filter(f => f.properties?.kind === 'portal')
     expect(blocks.length).toBeGreaterThan(200) // 11 ring bands × ~31 columns
     expect(labels.length).toBe(12) // Esplanade + A..K
-    expect(portals.length).toBe(11) // Center Camp + Café ring + B ring (4) + G ring (5)
+    expect(portals.length).toBe(19) // Center Camp bullseye (10) + B ring (4) + G ring (5)
     expect(labels.find(l => l.properties?.name === 'Eternal')).toBeTruthy()
   })
 
