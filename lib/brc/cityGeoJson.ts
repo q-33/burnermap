@@ -1,6 +1,21 @@
 import type { Feature, FeatureCollection } from 'geojson'
 import type { BrcAddress } from './geocode'
 import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
+import { STREET_LINE_OFFSETS } from './streetLines'
+
+// The real surveyed street network (official GIS centerlines), re-centred onto
+// the golden spike. This is the authoritative street geometry — radials + arcs,
+// with the true taper. Used for the line basemap.
+export function streetLinesGeoJson(): FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: STREET_LINE_OFFSETS.map(line => ({
+      type: 'Feature',
+      properties: { kind: 'street' },
+      geometry: { type: 'LineString', coordinates: line.map(p => [MAN.lng + p[0]!, MAN.lat + p[1]!]) },
+    })),
+  }
+}
 
 // Render Black Rock City to match the official BRC 2026 plan: individual blue
 // camp blocks separated by white street channels, on a near-white ground.
@@ -94,17 +109,6 @@ export function cityGridGeoJson(): FeatureCollection {
     }
   }
 
-  // 1b. White promenade "spoke" wedges along the major avenues — open corridors
-  // radiating through the camps, as on the plan.
-  for (const t of [3, 4.5, 6, 7.5, 9]) {
-    const ring: [number, number][] = []
-    ring.push(toLngLat(radialPoint(t - 0.06, espRadius)))
-    for (let s = 0; s <= 6; s++)
-      ring.push(toLngLat(radialPoint(t - 0.28 + (0.56 * s) / 6, kRadius)))
-    ring.push(toLngLat(radialPoint(t + 0.06, espRadius)))
-    ring.push(ring[0]!)
-    push('wedge', { type: 'Polygon', coordinates: [ring] })
-  }
 
   // 2. Trash fence (red dashed pentagon)
   push('fence', { type: 'LineString', coordinates: trashFence() })
@@ -131,12 +135,6 @@ export function cityGridGeoJson(): FeatureCollection {
     push('radial-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.H!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat) }, { name })
   }
 
-  // 3c. Full street-grid lines for the alternate "streets" basemap — every ring
-  // street as an arc + every 15-min radial avenue. Drawn only in streets mode.
-  for (const street of STREETS)
-    push('grid-line', { type: 'LineString', coordinates: arcAt(STREET_RADII[street]!, CITY_TIME_MIN, CITY_TIME_MAX) })
-  for (let t = 2.0; t <= 9.75 + 1e-9; t += 0.25)
-    push('grid-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.Esplanade!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat) })
 
   // 4. Cardinal avenues through the Man, the 12:00 promenade + end circle, Man circle
   const radial = (t: number, a: number, b: number) => [radialPoint(t, a), radialPoint(t, b)].map(toLngLat)

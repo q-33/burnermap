@@ -70,7 +70,7 @@ const wx = computed(() => weatherData.value?.current ?? null)
 // map layer visibility (the legend doubles as the toggle control)
 const layers = reactive({ camps: true, art: true, toilets: true, medical: true, safety: true, services: true, transport: true })
 const panelOpen = ref(true)
-const basemap = ref<'blocks' | 'lines'>('blocks')
+const basemap = ref<'blocks' | 'lines'>('lines')
 
 // live GPS readout
 const position = ref<{ lat: number, lng: number }>()

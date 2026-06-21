@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
-import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
+import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
@@ -11,18 +11,17 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 
 const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines' }>()
 
-// Swap the filled-block basemap for the Google-style street-line grid.
+// Swap between the real street-line geometry (default) and the filled-block plan.
 function applyBasemap() {
   if (!map)
     return
-  const lines = props.basemap === 'lines'
+  const lines = props.basemap !== 'blocks'
   const set = (id: string, visible: boolean) => {
     if (map!.getLayer(id))
       map!.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none')
   }
   set('blocks', !lines)
   set('blocks-outline', !lines)
-  set('wedges', !lines)
   set('street-lines', lines)
 }
 
@@ -132,25 +131,15 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'block'],
       paint: { 'line-color': '#42627c', 'line-width': 0.5 },
     })
-    // light-blue promenade wedges along the major avenues
-    map.addLayer({
-      id: 'wedges',
-      type: 'fill',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'wedge'],
-      // open-sand promenade corridors (the "spokes") — lighten the camps along
-      // the major avenues toward the background colour.
-      paint: { 'fill-color': '#f6f2ea', 'fill-opacity': 0.82 },
-    })
-    // alternate "streets" basemap — the full grid as thin grey lines (hidden by
-    // default; the basemap toggle swaps it in for the filled blocks).
+    // "Streets" basemap — the REAL surveyed street centerlines (official GIS).
+    // The default view: accurate street geometry, no colour fills.
+    map.addSource('streets', { type: 'geojson', data: streetLinesGeoJson() })
     map.addLayer({
       id: 'street-lines',
       type: 'line',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'grid-line'],
-      layout: { visibility: 'none' },
-      paint: { 'line-color': '#bdb6a8', 'line-width': 0.7 },
+      source: 'streets',
+      layout: { 'line-cap': 'round' },
+      paint: { 'line-color': '#9c9588', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 14, 1.1, 16, 2] },
     })
     // trash fence (red dashed pentagon)
     map.addLayer({
