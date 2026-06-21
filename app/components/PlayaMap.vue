@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
-import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
+import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
@@ -131,15 +131,15 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'block'],
       paint: { 'line-color': '#42627c', 'line-width': 0.5 },
     })
-    // "Streets" basemap — the 2026 street grid (radii + bearing validated against
-    // the official plan). The default view: accurate street geometry, no fills.
+    // "Streets" basemap — the EXACT 2026 street geometry traced from the official
+    // plan PDF. The default view: accurate street vectors, no fills.
+    map.addSource('streets', { type: 'geojson', data: streetLinesGeoJson() })
     map.addLayer({
       id: 'street-lines',
       type: 'line',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'grid-line'],
-      layout: { 'line-cap': 'round' },
-      paint: { 'line-color': '#9c9588', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 14, 1.1, 16, 2] },
+      source: 'streets',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#9c9588', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 14, 1, 16, 1.8] },
     })
     // trash fence (red dashed pentagon)
     map.addLayer({
