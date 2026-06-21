@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { loggedIn, user } = useUserSession()
+const { isAdmin } = useMe()
 
 const links = computed(() => [
   { label: 'Map', to: '/', icon: 'i-lucide-map' },
@@ -10,7 +11,7 @@ const links = computed(() => [
   { label: 'Live', to: '/live', icon: 'i-lucide-radio' },
   { label: 'Guide', to: '/guide', icon: 'i-lucide-compass' },
   { label: 'About', to: '/about', icon: 'i-lucide-info' },
-  ...((user.value as any)?.role === 'admin' ? [{ label: 'Admin', to: '/admin', icon: 'i-lucide-shield' }] : []),
+  ...(isAdmin.value ? [{ label: 'Admin', to: '/admin', icon: 'i-lucide-shield' }] : []),
 ])
 
 async function logout() {

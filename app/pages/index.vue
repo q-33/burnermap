@@ -16,6 +16,7 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
+const { hasFeature, refreshMe } = useMe()
 
 // optional ?lat&lng to focus a camp coming from the Camps list
 const route = useRoute()
@@ -80,6 +81,7 @@ async function submitAuth() {
     const path = mode.value === 'register' ? '/api/auth/register' : '/api/auth/login'
     await $fetch(path, { method: 'POST', body: { ...form } })
     await refreshSession()
+    await refreshMe()
     authOpen.value = false
   }
   catch (e: any) {
@@ -93,6 +95,7 @@ async function submitAuth() {
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await refreshSession()
+  await refreshMe()
 }
 
 // the current user's own camps + art (for picking vs creating)
@@ -118,10 +121,7 @@ const currentAddressNamed = computed(() =>
 
 // Manual address entry (gated by the 'manual-address' feature flag): type a BRC
 // address instead of relying on GPS — e.g. to mark a camp before arriving.
-const canManualAddress = computed(() => {
-  const u = user.value as any
-  return u?.role === 'admin' || (u?.features ?? []).includes('manual-address')
-})
+const canManualAddress = computed(() => hasFeature('manual-address'))
 const manualAddress = ref('')
 const manualParsed = computed(() => parseAddress(manualAddress.value.trim()))
 const usingManual = computed(() => canManualAddress.value && manualAddress.value.trim() !== '')

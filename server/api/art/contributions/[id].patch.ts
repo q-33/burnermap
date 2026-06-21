@@ -19,7 +19,9 @@ export default defineEventHandler(async (event) => {
   })
   if (!row)
     throw createError({ statusCode: 404, statusMessage: 'Contribution not found' })
-  if (row.art?.ownerId !== user.id && user.role !== 'admin')
+  // owner OR a live admin (re-checks the DB so a fresh admin grant works at once)
+  const isAdmin = row.art?.ownerId !== user.id ? (await getFreshUser(event))?.role === 'admin' : true
+  if (row.art?.ownerId !== user.id && !isAdmin)
     throw createError({ statusCode: 403, statusMessage: 'Not your artwork' })
 
   const [updated] = await db

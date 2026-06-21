@@ -12,9 +12,9 @@ interface Report { id: string, contentType: string, contentId: string, contentNa
 interface Recent { type: string, id: string, label: string, createdAt: string }
 interface Audit { id: string, action: string, actor: string, targetType: string | null, targetId: string | null, detail: string | null, createdAt: string }
 
-const { loggedIn, user } = useUserSession()
-const myId = computed(() => (user.value as any)?.id)
-const isAdmin = computed(() => (user.value as any)?.role === 'admin')
+const { loggedIn } = useUserSession()
+const { me, isAdmin } = useMe()
+const myId = computed(() => me.value?.id)
 
 const { data: users, refresh: refreshUsers } = await useFetch<AdminUser[]>('/api/admin/users', { immediate: false, default: () => [] })
 const { data: content, refresh: refreshContent } = await useFetch<Content>('/api/admin/content', { immediate: false, default: () => ({ camps: [], art: [], events: [] }) })

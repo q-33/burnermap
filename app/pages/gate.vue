@@ -13,8 +13,8 @@ interface Condition {
 }
 interface GateData { inbound: Condition | null, exodus: Condition | null, history: Condition[] }
 
-const { loggedIn, user } = useUserSession()
-const isGpe = computed(() => ['gpe', 'admin'].includes((user.value as any)?.role))
+const { loggedIn } = useUserSession()
+const { isGpe } = useMe()
 
 const { data, refresh, status } = await useFetch<GateData>('/api/gate')
 
