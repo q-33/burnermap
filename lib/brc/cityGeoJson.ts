@@ -109,6 +109,25 @@ export function cityGridGeoJson(): FeatureCollection {
   }
 
 
+  // 1c. Radial "gradient fans" — the pale wedges that radiate along every radial
+  // on the official plan. One centred on each radial column edge, apex at the
+  // Esplanade and widening outward, clipped to the tapered camp depth so they sit
+  // only on the blue. Purely decorative — they give the plan its radiating look.
+  for (let t = colMin; t <= colMax + 1e-9; t += 0.25) {
+    const depth = campDepth(Math.min(colMax - 0.125, Math.max(colMin + 0.125, t)))
+    const rOut = STREET_RADII[STREETS[Math.min(depth + 1, STREETS.length - 1)]!]!
+    const rIn = espRadius
+    if (rOut <= rIn)
+      continue
+    const wHalf = 0.075 // base half-width (clock-hours) at the outer edge
+    const ring: [number, number][] = [toLngLat(radialPoint(t, rIn))]
+    const steps = 5
+    for (let s = 0; s <= steps; s++)
+      ring.push(toLngLat(radialPoint(t - wHalf + (2 * wHalf * s) / steps, rOut)))
+    ring.push(ring[0]!)
+    push('fan', { type: 'Polygon', coordinates: [ring] })
+  }
+
   // 2. Trash fence (red dashed pentagon)
   push('fence', { type: 'LineString', coordinates: trashFence() })
 

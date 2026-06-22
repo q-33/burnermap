@@ -21,6 +21,7 @@ function applyBasemap() {
       map!.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none')
   }
   set('blocks', !lines)
+  set('block-fans', !lines)
   set('blocks-outline', !lines)
   set('street-lines', lines)
 }
@@ -84,7 +85,7 @@ onMounted(async () => {
       version: 8,
       glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: {},
-      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f6f2ea' } }],
+      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f8f5ef' } }],
     },
     // frame on a point between the Man and Center Camp so the city fills the view
     center: [(man[0] + centerCamp[0]) / 2, (man[1] + centerCamp[1]) / 2],
@@ -122,14 +123,22 @@ onMounted(async () => {
       // only the placed-camp blocks are filled blue; the walk-in fringe (camp=0)
       // is outline-only, giving the official tapered-horseshoe shape.
       filter: ['all', ['==', ['get', 'kind'], 'block'], ['==', ['get', 'camp'], 1]],
-      paint: { 'fill-color': '#5aa9d8', 'fill-opacity': 0.62 },
+      paint: { 'fill-color': '#5b9fd6', 'fill-opacity': 0.92 },
+    })
+    // radial gradient fans — pale wedges along each spoke (official-plan look)
+    map.addLayer({
+      id: 'block-fans',
+      type: 'fill',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'fan'],
+      paint: { 'fill-color': '#d8ecfa', 'fill-opacity': 0.55 },
     })
     map.addLayer({
       id: 'blocks-outline',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'block'],
-      paint: { 'line-color': '#42627c', 'line-width': 0.5 },
+      paint: { 'line-color': '#22455f', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 15, 1.1] },
     })
     // "Streets" basemap — the EXACT 2026 street geometry traced from the official
     // plan PDF. The default view: accurate street vectors, no fills.
@@ -187,7 +196,7 @@ onMounted(async () => {
       type: 'fill',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'portal-fill'],
-      paint: { 'fill-color': '#f6f2ea' },
+      paint: { 'fill-color': '#fbf9f5' },
     })
     map.addLayer({
       id: 'portals',
