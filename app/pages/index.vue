@@ -369,7 +369,7 @@ const itemOptions = computed(() => [
 
     <!-- GPS readout pill (bottom center) -->
     <div class="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
-      <div class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
+      <div class="pointer-events-auto items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl" :class="readout ? 'flex' : 'hidden sm:flex'">
         <UIcon :name="position ? 'i-lucide-navigation' : 'i-lucide-locate-fixed'" class="size-4" :class="position ? 'text-primary' : 'text-white/50'" />
         <span :class="position ? 'font-medium' : 'text-white/60'">
           {{ readout ?? 'Tap the map to drop a pin — or ⌖ to find yourself on the playa' }}
