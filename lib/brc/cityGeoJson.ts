@@ -86,11 +86,17 @@ export function cityGridGeoJson(): FeatureCollection {
   const kRadius = STREET_RADII[OUTER]!
 
   // 1. City BLOCKS — the full grid Esplanade→K, 2:00–10:00, 15-min columns. The
-  // blue camp FILL is a tapered horseshoe: full depth (→K) near 6:00, shallow
-  // (→Eternal) at the 2:00/10:00 ends. The outer-corner blocks beyond that depth
-  // are the walk-in fringe (outline only). Matches the official 2026 plan.
+  // blue camp FILL is the official 2026 horseshoe, measured from the plan PDF:
+  // a deep, near-flat baseline (~Jiba) across the central arc that tapers
+  // diagonally toward the shallow 2:00/10:00 ends. Beyond that depth the
+  // outer-corner blocks are the walk-in fringe (outline only).
   const NBANDS = STREETS.length - 2 // outermost filled band index (J–K = 10)
-  const campDepth = (t: number) => Math.max(3, Math.min(NBANDS, Math.round(NBANDS - 6 * ((Math.abs(t - 6) / 4) ** 2))))
+  const campDepth = (t: number) => {
+    const d = Math.abs(t - 6)
+    // flat deep core, tapering past ±2.2 h toward the 2:00/10:00 ends
+    const depth = Math.round(9 - 2.5 * Math.max(0, d - 2.2) ** 1.7)
+    return Math.max(3, Math.min(NBANDS, depth))
+  }
   const colMin = 2.0
   const colMax = 9.75
   for (let i = 0; i < STREETS.length - 1; i++) {
