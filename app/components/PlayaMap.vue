@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap, Marker } from 'maplibre-gl'
+import * as suncalcNs from 'suncalc'
 import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
@@ -9,7 +10,7 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 
 interface CampPin { name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null }>()
 
 // Swap between the real street-line geometry (default) and the filled-block plan.
 function applyBasemap() {
@@ -100,6 +101,68 @@ function campPlotsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
       properties: { name: c.name },
       geometry: { type: 'Polygon', coordinates: [[corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1), corner(-1, -1)]] },
     })
+  }
+  return { type: 'FeatureCollection', features }
+}
+
+// 2D convex hull (Andrew's monotone chain) over [x, y] points.
+function convexHull(pts: [number, number][]): [number, number][] {
+  const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  if (p.length < 3)
+    return p
+  const cross = (o: [number, number], a: [number, number], b: [number, number]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+  const lower: [number, number][] = []
+  for (const q of p) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2]!, lower[lower.length - 1]!, q) <= 0) lower.pop()
+    lower.push(q)
+  }
+  const upper: [number, number][] = []
+  for (let i = p.length - 1; i >= 0; i--) {
+    const q = p[i]!
+    while (upper.length >= 2 && cross(upper[upper.length - 2]!, upper[upper.length - 1]!, q) <= 0) upper.pop()
+    upper.push(q)
+  }
+  lower.pop()
+  upper.pop()
+  return lower.concat(upper)
+}
+
+// Cast shadows for every camp at a given instant: each footprint (the plot, or a
+// small default box) is swept in the anti-sun direction; length scales with sun
+// altitude. `sunTime` is epoch ms; null/sun-down → no shadows.
+const SHADOW_HEIGHT_M = 3.5 // reference structure height
+const SHADOW_MAX_M = 90
+// suncalc is CommonJS — normalize whether the bundler exposes a default or the
+// namespace itself.
+const SunCalc = ((suncalcNs as any).default ?? suncalcNs) as { getPosition: (date: Date, lat: number, lng: number) => { altitude: number, azimuth: number } }
+function shadowsGeoJson(pins: CampPin[], sunTime: number | null | undefined): GeoJSON.FeatureCollection {
+  if (sunTime == null)
+    return { type: 'FeatureCollection', features: [] }
+  const [manLng, manLat] = getManPoint()
+  const sun = SunCalc.getPosition(new Date(sunTime), manLat, manLng) // degrees, az from N
+  if (sun.altitude <= 1)
+    return { type: 'FeatureCollection', features: [] } // sun down / too low
+  const MLAT = 111320
+  const MLNG = MLAT * Math.cos((manLat * Math.PI) / 180)
+  const L = Math.min(SHADOW_MAX_M, SHADOW_HEIGHT_M / Math.tan((sun.altitude * Math.PI) / 180))
+  const shAz = ((sun.azimuth + 180) * Math.PI) / 180 // shadow points away from the sun
+  const sE = L * Math.sin(shAz)
+  const sN = L * Math.cos(shAz)
+  const features: GeoJSON.Feature[] = []
+  for (const c of pins) {
+    const E = (c.lng - manLng) * MLNG
+    const N = (c.lat - manLat) * MLAT
+    const r = Math.hypot(E, N) || 1
+    const rad: [number, number] = [E / r, N / r]
+    const tan: [number, number] = [-N / r, E / r]
+    const hf = ((c.frontageFt ?? 0) > 0 ? (c.frontageFt! * 0.3048) : 6) / 2
+    const hd = ((c.depthFt ?? 0) > 0 ? (c.depthFt! * 0.3048) : 6) / 2
+    const base: [number, number][] = ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([sf, sd]) =>
+      [E + sf * hf * tan[0] + sd * hd * rad[0], N + sf * hf * tan[1] + sd * hd * rad[1]] as [number, number])
+    const hull = convexHull([...base, ...base.map(([e, n]) => [e + sE, n + sN] as [number, number])])
+    const ring = hull.map(([e, n]) => [manLng + e / MLNG, manLat + n / MLAT] as [number, number])
+    ring.push(ring[0]!)
+    features.push({ type: 'Feature', properties: { name: c.name }, geometry: { type: 'Polygon', coordinates: [ring] } })
   }
   return { type: 'FeatureCollection', features }
 }
@@ -454,6 +517,14 @@ onMounted(async () => {
           .addTo(map)
       }
     })
+    // sun shadows (when the shade tool is active) — drawn under everything
+    map.addSource('shadows', { type: 'geojson', data: shadowsGeoJson(props.camps, props.sunTime) })
+    map.addLayer({
+      id: 'shadows',
+      type: 'fill',
+      source: 'shadows',
+      paint: { 'fill-color': '#1c2733', 'fill-opacity': 0.22 },
+    })
     // camp plot footprints (appear as you zoom in) — drawn under the pins
     map.addSource('camp-plots', { type: 'geojson', data: campPlotsGeoJson(props.camps) })
     map.addLayer({
@@ -543,11 +614,17 @@ watch(() => props.dropMode, (on) => {
   }
 })
 
-// keep camp pins + plot footprints in sync
+// keep camp pins + plot footprints + shadows in sync
 watch(() => props.camps, () => {
   ;(map?.getSource('camps') as GeoJSONSource | undefined)?.setData(pinsGeoJson(props.camps))
   ;(map?.getSource('camp-plots') as GeoJSONSource | undefined)?.setData(campPlotsGeoJson(props.camps))
+  ;(map?.getSource('shadows') as GeoJSONSource | undefined)?.setData(shadowsGeoJson(props.camps, props.sunTime))
 }, { deep: true })
+
+// recompute shadows when the shade-tool time changes
+watch(() => props.sunTime, () => {
+  ;(map?.getSource('shadows') as GeoJSONSource | undefined)?.setData(shadowsGeoJson(props.camps, props.sunTime))
+})
 
 // keep art pins in sync
 watch(() => props.artPins, () => {

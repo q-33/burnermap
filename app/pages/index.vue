@@ -86,6 +86,27 @@ const layers = reactive({ camps: true, art: true, toilets: true, medical: true, 
 const panelOpen = ref(false)
 const basemap = ref<'blocks' | 'lines'>('blocks')
 
+// --- sun & shade tool: date + time → shadows for every camp -----------------
+const shadowMode = ref(false)
+const shadowDate = ref('2026-09-02') // a mid-event day; the burn is Sat Sep 5
+const shadowMin = ref(540) // minutes after 06:00 (540 = 3:00 PM)
+function shadowClock(min: number) {
+  const total = 360 + min
+  const h = Math.floor(total / 60)
+  const mi = total % 60
+  return { h, mi, label: `${((h + 11) % 12) + 1}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` }
+}
+const shadowTimeLabel = computed(() => shadowClock(shadowMin.value).label)
+const shadowDayLabel = computed(() => new Date(`${shadowDate.value}T00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }))
+// instant as epoch ms — BRC runs on PDT (UTC-7) during the event
+const sunInstant = computed<number | null>(() => {
+  if (!shadowMode.value)
+    return null
+  const [y, mo, d] = shadowDate.value.split('-').map(Number)
+  const { h, mi } = shadowClock(shadowMin.value)
+  return Date.UTC(y!, mo! - 1, d!, h + 7, mi)
+})
+
 // live GPS readout
 const position = ref<{ lat: number, lng: number }>()
 const accuracy = ref<number>() // metres, from the GPS fix
@@ -295,7 +316,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode" class="size-full" @position="onPosition" @pick="onPick" />
+        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode" :sun-time="sunInstant" class="size-full" @position="onPosition" @pick="onPick" />
       </ClientOnly>
     </div>
 
@@ -368,6 +389,10 @@ const itemOptions = computed(() => [
           <button type="button" class="flex-1 rounded-md py-1 text-[11px] font-medium transition" :class="basemap === 'blocks' ? 'bg-primary text-white' : 'text-white/55 hover:text-white'" @click="basemap = 'blocks'">Blocks</button>
           <button type="button" class="flex-1 rounded-md py-1 text-[11px] font-medium transition" :class="basemap === 'lines' ? 'bg-primary text-white' : 'text-white/55 hover:text-white'" @click="basemap = 'lines'">Streets</button>
         </div>
+        <button type="button" class="flex w-full items-center gap-1.5" :class="!shadowMode && 'opacity-40'" @click="shadowMode = !shadowMode">
+          <UIcon name="i-lucide-sun" class="size-3.5" :class="shadowMode ? 'text-amber-400' : 'text-white/60'" />Sun &amp; shade
+          <UIcon :name="shadowMode ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
+        </button>
         <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.camps && 'opacity-40'" @click="layers.camps = !layers.camps">
           <span class="inline-block size-2 rounded-full" style="background:#d6336c" />Camps
           <UIcon :name="layers.camps ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
@@ -421,6 +446,19 @@ const itemOptions = computed(() => [
     <!-- compass rose (map orientation is locked to bearing 45°) -->
     <div class="pointer-events-none absolute bottom-20 right-4 sm:bottom-6">
       <CompassRose />
+    </div>
+
+    <!-- sun & shade time control -->
+    <div v-if="shadowMode" class="pointer-events-none absolute inset-x-0 bottom-16 flex justify-center px-4">
+      <div class="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-[#26211a]/90 px-3 py-2.5 text-white shadow-lg backdrop-blur-xl">
+        <UIcon name="i-lucide-sun" class="size-5 shrink-0 text-amber-400" />
+        <input v-model="shadowDate" type="date" class="shrink-0 rounded-md bg-white/10 px-2 py-1 text-xs [color-scheme:dark]">
+        <input v-model.number="shadowMin" type="range" min="0" max="900" step="15" class="min-w-0 flex-1 accent-amber-400" aria-label="Time of day">
+        <span class="shrink-0 text-sm font-medium tabular-nums">{{ shadowTimeLabel }}</span>
+        <button type="button" class="shrink-0 text-white/60 hover:text-white" aria-label="Close" @click="shadowMode = false">
+          <UIcon name="i-lucide-x" class="size-4" />
+        </button>
+      </div>
     </div>
 
     <!-- GPS readout pill (bottom center) -->

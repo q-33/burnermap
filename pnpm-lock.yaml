@@ -23,6 +23,9 @@ dependencies:
   postgres:
     specifier: ^3.4.5
     version: 3.4.5
+  suncalc:
+    specifier: ^2.0.0
+    version: 2.0.0
   vue:
     specifier: ^3.5.35
     version: 3.5.35(typescript@5.9.3)
@@ -8596,6 +8599,10 @@ packages:
       browserslist: 4.28.2
       postcss: 8.5.15
       postcss-selector-parser: 7.1.4
+    dev: false
+
+  /suncalc@2.0.0:
+    resolution: {integrity: sha512-RcO28GOMXNnB+sr+c7/+zv5UPMa9wxIsUVGE3HddjQykqCVEC2rc4t4IjBB7qaa7K7dx5Cxp8UZwexyXrX8JkA==}
     dev: false
 
   /supports-color@10.2.2:
