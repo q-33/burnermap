@@ -72,6 +72,20 @@ export const gateConditions = pgTable('gate_conditions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('gate_conditions_dir_idx').on(t.direction, t.createdAt)])
 
+// In-app 1:1 direct messages. A conversation is the set of messages between a
+// given pair of users (derived, not a stored row).
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  recipientId: uuid('recipient_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('messages_recipient_unread_idx').on(t.recipientId, t.readAt),
+  index('messages_sender_idx').on(t.senderId, t.createdAt),
+])
+
 export const camps = pgTable('camps', {
   id: uuid('id').primaryKey().defaultRandom(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
@@ -178,6 +192,11 @@ export const auditLogRelations = relations(auditLog, ({ one }) => ({
 
 export const gateConditionsRelations = relations(gateConditions, ({ one }) => ({
   updatedBy: one(users, { fields: [gateConditions.updatedById], references: [users.id] }),
+}))
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(users, { fields: [messages.senderId], references: [users.id], relationName: 'sentMessages' }),
+  recipient: one(users, { fields: [messages.recipientId], references: [users.id], relationName: 'receivedMessages' }),
 }))
 
 export const locationsRelations = relations(locations, ({ one }) => ({

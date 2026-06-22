@@ -90,6 +90,12 @@ export const gateConditionSchema = z.object({
   note: z.string().trim().max(280).optional().or(z.literal('')),
 })
 
+// A direct message to another registered user.
+export const messageSchema = z.object({
+  recipientId: z.string().uuid(),
+  body: z.string().trim().min(1).max(4000),
+})
+
 // A location is marked by its BRC address; coordinates are geocoded server-side.
 export const locationSchema = z.object({
   campId: z.string().uuid().optional(),

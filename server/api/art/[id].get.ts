@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
   const row = await db.query.art.findFirst({
     where: eq(art.id, id),
     with: {
+      owner: { columns: { id: true, displayName: true, playaName: true } },
       locations: {
         columns: { addressString: true, gpsLatitude: true, gpsLongitude: true, createdAt: true },
       },

@@ -1,6 +1,16 @@
+import { and, count, eq, isNull } from 'drizzle-orm'
+import { messages } from '../db/schema'
+
 // The current user with LIVE role + feature flags (vs. the session snapshot from
-// login). The client fetches this on load so role/feature grants apply without
-// requiring a re-login. Returns null when not signed in.
+// login) plus the unread-message count for the inbox badge. The client fetches
+// this on load so role/feature grants apply without requiring a re-login.
+// Returns null when not signed in.
 export default defineEventHandler(async (event) => {
-  return (await getFreshUser(event)) ?? null
+  const user = await getFreshUser(event)
+  if (!user)
+    return null
+  const [row] = await useDb()
+    .select({ n: count() }).from(messages)
+    .where(and(eq(messages.recipientId, user.id), isNull(messages.readAt)))
+  return { ...user, unreadMessages: row?.n ?? 0 }
 })

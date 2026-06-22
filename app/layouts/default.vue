@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { loggedIn, user } = useUserSession()
-const { isAdmin } = useMe()
+const { isAdmin, unreadMessages } = useMe()
 
 const links = computed(() => [
   { label: 'Map', to: '/', icon: 'i-lucide-map' },
@@ -48,6 +48,9 @@ async function logout() {
 
         <div class="flex items-center gap-2">
           <UColorModeButton />
+          <UChip v-if="loggedIn" :text="unreadMessages" :show="unreadMessages > 0" color="primary" size="2xl">
+            <UButton to="/messages" size="sm" color="neutral" variant="ghost" icon="i-lucide-mail" square aria-label="Messages" />
+          </UChip>
           <UButton v-if="loggedIn" size="sm" color="neutral" variant="soft" icon="i-lucide-user" @click="logout">
             {{ user?.displayName || 'Log out' }}
           </UButton>

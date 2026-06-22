@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
     orderBy: [desc(camps.createdAt)],
     limit: 200,
     with: {
+      owner: { columns: { id: true, displayName: true } },
       locations: {
         columns: { addressString: true, gpsLatitude: true, gpsLongitude: true, createdAt: true },
       },

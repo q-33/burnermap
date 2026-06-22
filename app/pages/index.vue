@@ -16,11 +16,16 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
-const { hasFeature, refreshMe, isAdmin, isGpe } = useMe()
+const { hasFeature, refreshMe, isAdmin, isGpe, unreadMessages } = useMe()
 
-// account dropdown — quick links to the admin/GPE tools + log out
+// account dropdown — quick links to messages + the admin/GPE tools + log out
 const userMenu = computed(() => {
   const groups: any[] = [[{ label: user.value?.displayName || user.value?.email || 'Account', type: 'label' as const }]]
+  groups.push([{
+    label: unreadMessages.value ? `Messages (${unreadMessages.value})` : 'Messages',
+    icon: 'i-lucide-mail',
+    to: '/messages',
+  }])
   const tools: any[] = []
   if (isGpe.value)
     tools.push({ label: 'Gate conditions', icon: 'i-lucide-traffic-cone', to: '/gate' })

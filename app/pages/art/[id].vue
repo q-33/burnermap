@@ -27,6 +27,7 @@ interface ArtDetail {
   website: string | null
   call: string | null
   isOwner: boolean
+  owner: { id: string, displayName: string | null, playaName: string | null } | null
   locations: Loc[]
   contributions: Contribution[]
 }
@@ -146,6 +147,8 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
       <div class="mt-3 flex flex-wrap gap-3">
         <UButton v-if="art.website" :to="art.website" target="_blank" size="xs" variant="subtle" icon="i-lucide-link">Website</UButton>
         <UButton v-if="mapped" :to="`/?lat=${mapped.gpsLatitude}&lng=${mapped.gpsLongitude}`" size="xs" variant="subtle" icon="i-lucide-map-pin">View on map</UButton>
+        <UButton v-if="art.owner && !art.isOwner && loggedIn" :to="`/messages/${art.owner.id}`" size="xs" variant="subtle" icon="i-lucide-mail">Message the organizer</UButton>
+        <UButton v-else-if="art.owner && !art.isOwner && !loggedIn" to="/?login=1" size="xs" variant="subtle" icon="i-lucide-mail">Log in to message</UButton>
         <UButton v-if="loggedIn && !reported" size="xs" variant="ghost" color="neutral" icon="i-lucide-flag" @click="reportOpen = true">Report</UButton>
         <span v-if="reported" class="text-xs text-(--ui-text-muted)">Reported — thanks, a moderator will review.</span>
       </div>

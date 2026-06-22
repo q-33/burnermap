@@ -11,7 +11,10 @@ function namedAddress(s: string | null | undefined): string | null {
 }
 
 interface Loc { addressString: string | null, gpsLatitude: number | null, gpsLongitude: number | null, createdAt: string }
-interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, locations: Loc[] }
+interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, owner: { id: string, displayName: string | null } | null, locations: Loc[] }
+
+const { loggedIn } = useUserSession()
+const { me } = useMe()
 
 const q = ref('')
 const debounced = refDebounced(q, 250)
@@ -66,15 +69,28 @@ useHead({ title: 'Camps — BurnerMap' })
         </div>
         <p v-if="c.description" class="mt-2 line-clamp-3 text-sm text-(--ui-text-muted)">{{ c.description }}</p>
         <p v-if="c.hometown" class="mt-1 text-xs text-(--ui-text-muted)">🏠 {{ c.hometown }}</p>
-        <template v-if="mapped(c)" #footer>
-          <UButton
-            :to="`/?lat=${mapped(c)!.gpsLatitude}&lng=${mapped(c)!.gpsLongitude}`"
-            size="xs"
-            variant="link"
-            class="px-0"
-          >
-            View on map →
-          </UButton>
+        <template v-if="mapped(c) || (c.owner && c.owner.id !== me?.id)" #footer>
+          <div class="flex items-center gap-3">
+            <UButton
+              v-if="mapped(c)"
+              :to="`/?lat=${mapped(c)!.gpsLatitude}&lng=${mapped(c)!.gpsLongitude}`"
+              size="xs"
+              variant="link"
+              class="px-0"
+            >
+              View on map →
+            </UButton>
+            <UButton
+              v-if="c.owner && c.owner.id !== me?.id"
+              :to="loggedIn ? `/messages/${c.owner.id}` : '/?login=1'"
+              size="xs"
+              variant="link"
+              class="px-0"
+              icon="i-lucide-mail"
+            >
+              {{ loggedIn ? 'Message organizer' : 'Log in to message' }}
+            </UButton>
+          </div>
         </template>
       </UCard>
     </div>
