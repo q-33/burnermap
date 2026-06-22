@@ -43,6 +43,14 @@ const userMenu = computed(() => {
   return groups
 })
 
+// top-bar nav — inline on desktop, collapsed into a menu on mobile
+const navItems = [[
+  { label: 'Camps', icon: 'i-lucide-tent', to: '/camps' },
+  { label: 'Art', icon: 'i-lucide-palette', to: '/art' },
+  { label: 'Events', icon: 'i-lucide-calendar', to: '/events' },
+  { label: 'Guide', icon: 'i-lucide-compass', to: '/guide' },
+]]
+
 // optional ?lat&lng to focus a camp coming from the Camps list
 const route = useRoute()
 const focus = computed(() => {
@@ -252,19 +260,26 @@ const itemOptions = computed(() => [
           <UIcon name="i-lucide-flame" class="size-4 text-primary" />
           <span class="font-display text-sm font-bold uppercase tracking-wide">BurnerMap</span>
         </NuxtLink>
-        <UButton to="/camps" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Camps</UButton>
-        <UButton to="/art" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Art</UButton>
-        <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
-        <UButton to="/guide" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Guide</UButton>
+        <!-- desktop: inline nav -->
+        <div class="hidden items-center gap-1 sm:flex">
+          <UButton to="/camps" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Camps</UButton>
+          <UButton to="/art" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Art</UButton>
+          <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
+          <UButton to="/guide" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Guide</UButton>
+        </div>
+        <!-- mobile: collapsed menu -->
+        <UDropdownMenu :items="navItems" :content="{ align: 'start', sideOffset: 6 }" class="sm:hidden">
+          <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-menu" class="text-white/80 hover:text-white" aria-label="Menu" />
+        </UDropdownMenu>
       </div>
 
       <div class="pointer-events-auto flex items-center gap-2">
         <template v-if="loggedIn">
-          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" @click="startDrop('camp')">
-            {{ myCamp ? 'Edit my camp' : 'Drop camp' }}
+          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="startDrop('camp')">
+            <span class="hidden sm:inline">{{ myCamp ? 'Edit my camp' : 'Drop camp' }}</span>
           </UButton>
-          <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" @click="startDrop('art')">
-            Drop art
+          <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" aria-label="Drop art" @click="startDrop('art')">
+            <span class="hidden sm:inline">Drop art</span>
           </UButton>
           <UDropdownMenu :items="userMenu" :content="{ align: 'end', sideOffset: 6 }">
             <UButton size="sm" color="neutral" variant="solid" class="bg-[#26211a]/85 text-white backdrop-blur-xl" icon="i-lucide-user" trailing-icon="i-lucide-chevron-down">
