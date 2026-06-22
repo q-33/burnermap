@@ -37,7 +37,7 @@ function arcAt(radiusM: number, tMin: number, tMax: number): [number, number][] 
 // inset by half a street width on each side to leave the white street channels.
 // `camp` = 1 for the solid-blue placed-camp area, 0 for the outline-only walk-in
 // fringe at the outer corners (matching the official plan's tapered horseshoe).
-function block(rIn: number, rOut: number, t0: number, t1: number, camp: number): Feature {
+function block(rIn: number, rOut: number, t0: number, t1: number, camp: number, shade = 0): Feature {
   const ring: [number, number][] = []
   const steps = 4
   for (let s = 0; s <= steps; s++)
@@ -45,7 +45,9 @@ function block(rIn: number, rOut: number, t0: number, t1: number, camp: number):
   for (let s = 0; s <= steps; s++)
     ring.push(toLngLat(radialPoint(t1 - ((t1 - t0) * s) / steps, rOut)))
   ring.push(ring[0]!)
-  return { type: 'Feature', properties: { kind: 'block', camp }, geometry: { type: 'Polygon', coordinates: [ring] } }
+  // `shade` 0→1 fades the cell blue→white (the official plan lightens toward the
+  // outer rings and the 2:00/10:00 tips); the renderer interpolates the colour.
+  return { type: 'Feature', properties: { kind: 'block', camp, shade: Math.round(shade * 100) / 100 }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
 // Center Camp geometry, from the official surveyed plaza polygon (GIS): the
@@ -117,8 +119,12 @@ export function cityGridGeoJson(): FeatureCollection {
         continue
       const t0 = j + tGap
       const t1 = j + 0.25 - tGap
+      // fade-to-white: radial (outer rings, measured from the plan) + a tip boost
+      const radial = Math.max(0, (i - 5) / 5) * 0.7
+      const tip = Math.max(0, (Math.abs(col - 6) - 3) / 1) * 0.3
+      const shade = Math.min(0.85, radial + tip)
       if (t1 > t0)
-        features.push(block(rIn, rOut, t0, t1, i <= campDepth(col) ? 1 : 0))
+        features.push(block(rIn, rOut, t0, t1, i <= campDepth(col) ? 1 : 0, shade))
     }
   }
 

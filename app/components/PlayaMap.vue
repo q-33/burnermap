@@ -127,8 +127,12 @@ onMounted(async () => {
       // only the placed-camp blocks are filled blue; the walk-in fringe (camp=0)
       // is outline-only, giving the official tapered-horseshoe shape.
       filter: ['all', ['==', ['get', 'kind'], 'block'], ['==', ['get', 'camp'], 1]],
-      // vivid azure to match the official plan (#2fa1fa)
-      paint: { 'fill-color': '#2fa1fa', 'fill-opacity': 0.97 },
+      // vivid azure (#2fa1fa) fading to white toward the outer rings + 2:00/10:00
+      // tips, per the official plan (each block carries a 0→1 `shade`).
+      paint: {
+        'fill-color': ['interpolate', ['linear'], ['get', 'shade'], 0, '#2fa1fa', 1, '#ffffff'],
+        'fill-opacity': 0.97,
+      },
     })
     // radial gradient fans — pale wedges along each spoke (official-plan look)
     map.addLayer({
@@ -136,7 +140,7 @@ onMounted(async () => {
       type: 'fill',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'fan'],
-      paint: { 'fill-color': '#eaf6ff', 'fill-opacity': 0.6 },
+      paint: { 'fill-color': '#eaf6ff', 'fill-opacity': 0.4 },
     })
     map.addLayer({
       id: 'blocks-outline',
