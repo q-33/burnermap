@@ -521,6 +521,10 @@ onMounted(async () => {
 
     applyLayerVisibility()
     applyBasemap()
+    // apply an initial focus (?lat&lng "view on map") — the watch below can miss
+    // it because it fires before the map finishes loading.
+    if (props.focus)
+      map.flyTo({ center: [props.focus.lng, props.focus.lat], zoom: 15, speed: 0.8 })
   })
 })
 
@@ -559,11 +563,12 @@ watch(() => props.gateColor, (c) => {
   map.setPaintProperty('gate-road', 'line-width', c ? 3 : 1.6)
 })
 
-// fly to a focused camp (from the list's "view on map")
+// fly to a focused camp when it changes after load (initial focus is applied in
+// the load handler above, since this can fire before the map exists)
 watch(() => props.focus, (f) => {
   if (f && map)
     map.flyTo({ center: [f.lng, f.lat], zoom: 15, speed: 0.8 })
-}, { immediate: true })
+})
 
 onBeforeUnmount(() => map?.remove())
 </script>
