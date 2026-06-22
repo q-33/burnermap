@@ -285,8 +285,19 @@ const itemOptions = computed(() => [
       <button type="button" class="text-white/60 underline hover:text-white" @click="cancelDrop">Cancel</button>
     </div>
 
-    <!-- layers panel (doubles as the legend) -->
-    <div class="pointer-events-auto absolute bottom-4 left-3 w-44 overflow-hidden rounded-xl border border-white/10 bg-[#26211a]/85 text-xs text-white shadow-lg backdrop-blur-xl">
+    <!-- lower-left stack: gate status widget above the layers panel -->
+    <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
+      <NuxtLink
+        to="/gate"
+        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+      >
+        <UIcon name="i-lucide-traffic-cone" class="size-4 text-primary" />
+        <span class="font-medium">Gate</span>
+        <span class="text-white/60">{{ gateStatusLabel }}</span>
+        <span class="size-2.5 rounded-full ring-1 ring-white/20" :style="{ background: gateRoadColor ?? '#6b7280' }" />
+      </NuxtLink>
+      <!-- layers panel (doubles as the legend) -->
+      <div class="pointer-events-auto w-44 overflow-hidden rounded-xl border border-white/10 bg-[#26211a]/85 text-xs text-white shadow-lg backdrop-blur-xl">
       <button type="button" class="flex w-full items-center gap-1.5 px-3 py-2 font-display font-semibold" @click="panelOpen = !panelOpen">
         <UIcon name="i-lucide-layers" class="size-3.5 text-primary" />Layers
         <UIcon :name="panelOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'" class="ml-auto size-3.5 text-white/60" />
@@ -331,30 +342,20 @@ const itemOptions = computed(() => [
           <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
         </ul>
       </div>
+      </div>
     </div>
 
-    <!-- weather + gate widgets (top-left, stacked below the bar) -->
-    <div class="pointer-events-none absolute left-3 top-16 flex flex-col items-start gap-2">
-      <NuxtLink
-        v-if="wx"
-        to="/live"
-        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-      >
-        <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
-        <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
-        <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
-        <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
-      </NuxtLink>
-      <NuxtLink
-        to="/gate"
-        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-      >
-        <UIcon name="i-lucide-traffic-cone" class="size-4 text-primary" />
-        <span class="font-medium">Gate</span>
-        <span class="text-white/60">{{ gateStatusLabel }}</span>
-        <span class="size-2.5 rounded-full ring-1 ring-white/20" :style="{ background: gateRoadColor ?? '#6b7280' }" />
-      </NuxtLink>
-    </div>
+    <!-- weather pill (top-left, below the bar) -->
+    <NuxtLink
+      v-if="wx"
+      to="/live"
+      class="pointer-events-auto absolute left-3 top-16 flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+    >
+      <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
+      <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
+      <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
+      <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
+    </NuxtLink>
 
     <!-- compass rose (map orientation is locked to bearing 45°) -->
     <div class="pointer-events-none absolute bottom-20 right-4 sm:bottom-6">
