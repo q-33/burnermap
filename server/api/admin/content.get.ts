@@ -10,7 +10,10 @@ export default defineEventHandler(async (event) => {
     db.query.camps.findMany({
       orderBy: [desc(camps.createdAt)],
       limit: 500,
-      with: { owner: { columns: { email: true, displayName: true } }, locations: { columns: { id: true } } },
+      with: {
+        owner: { columns: { email: true, displayName: true } },
+        locations: { columns: { gpsLatitude: true, gpsLongitude: true, addressString: true, createdAt: true } },
+      },
     }),
     db.query.art.findMany({
       orderBy: [desc(art.createdAt)],
@@ -29,7 +32,26 @@ export default defineEventHandler(async (event) => {
   ])
 
   return {
-    camps: campRows.map(c => ({ id: c.id, name: c.name, year: c.year, owner: c.owner?.email ?? null, locations: c.locations.length, hidden: c.hidden })),
+    camps: campRows.map((c) => {
+      const loc = [...c.locations].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
+      return {
+        id: c.id,
+        name: c.name,
+        year: c.year,
+        owner: c.owner?.email ?? null,
+        locations: c.locations.length,
+        hidden: c.hidden,
+        description: c.description,
+        website: c.website,
+        contactEmail: c.contactEmail,
+        hometown: c.hometown,
+        frontageFt: c.frontageFt,
+        depthFt: c.depthFt,
+        lat: loc?.gpsLatitude ?? null,
+        lng: loc?.gpsLongitude ?? null,
+        address: loc?.addressString ?? null,
+      }
+    }),
     art: artRows.map(a => ({
       id: a.id,
       name: a.name,

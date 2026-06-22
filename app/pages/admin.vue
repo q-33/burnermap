@@ -2,8 +2,13 @@
 import { FEATURES } from '~~/lib/features'
 
 interface AdminUser { id: string, email: string, displayName: string | null, role: string, createdAt: string, features: string[] }
+interface AdminCamp {
+  id: string, name: string, year: number, owner: string | null, locations: number, hidden: boolean
+  description: string | null, website: string | null, contactEmail: string | null, hometown: string | null
+  frontageFt: number | null, depthFt: number | null, lat: number | null, lng: number | null, address: string | null
+}
 interface Content {
-  camps: { id: string, name: string, year: number, owner: string | null, locations: number, hidden: boolean }[]
+  camps: AdminCamp[]
   art: { id: string, name: string, year: number, owner: string | null, locations: number, contributions: number, pending: number, hidden: boolean }[]
   events: { id: string, title: string, camp: string | null, startsAt: string }[]
 }
@@ -110,6 +115,44 @@ async function del(type: 'camps' | 'art' | 'events', id: string, label: string) 
   try { await $fetch(`/api/admin/${type}/${id}`, { method: 'DELETE' }); await refreshContent(); await refreshRecent(); await refreshAudit() }
   catch (e: any) { msg.value = e?.data?.statusMessage ?? 'Could not delete' }
   finally { busy.value = '' }
+}
+
+// --- edit a camp's details (admin) -----------------------------------------
+const campEditOpen = ref(false)
+const campEditId = ref('')
+const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null })
+const campEditBusy = ref(false)
+const campEditError = ref('')
+
+function openCampEdit(c: AdminCamp) {
+  campEditId.value = c.id
+  campForm.name = c.name
+  campForm.description = c.description ?? ''
+  campForm.website = c.website ?? ''
+  campForm.hometown = c.hometown ?? ''
+  campForm.contactEmail = c.contactEmail ?? ''
+  campForm.frontageFt = c.frontageFt
+  campForm.depthFt = c.depthFt
+  campEditError.value = ''
+  campEditOpen.value = true
+}
+
+async function saveCampEdit() {
+  if (!campForm.name.trim())
+    return
+  campEditBusy.value = true
+  campEditError.value = ''
+  try {
+    await $fetch(`/api/camps/${campEditId.value}`, { method: 'PATCH', body: { ...campForm } })
+    await refreshContent()
+    campEditOpen.value = false
+  }
+  catch (e: any) {
+    campEditError.value = e?.data?.statusMessage ?? 'Could not save'
+  }
+  finally {
+    campEditBusy.value = false
+  }
 }
 
 async function moderate(c: QueueItem, status: 'published' | 'hidden') {
@@ -247,11 +290,13 @@ useHead({ title: 'Admin — BurnerMap' })
         </div>
         <div class="divide-y divide-(--ui-border) overflow-hidden rounded-xl border border-(--ui-border)">
           <template v-if="ctab === 'camps'">
-            <div v-for="c in content?.camps" :key="c.id" class="flex items-center gap-3 px-3 py-2" :class="c.hidden && 'opacity-55'">
+            <div v-for="c in content?.camps" :key="c.id" class="flex flex-wrap items-center gap-2 px-3 py-2" :class="c.hidden && 'opacity-55'">
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium">{{ c.name }} <span class="text-(--ui-text-muted)">· {{ c.year }}</span><UBadge v-if="c.hidden" color="neutral" variant="subtle" size="xs" class="ml-1">hidden</UBadge></p>
-                <p class="truncate text-xs text-(--ui-text-muted)">{{ c.owner ?? 'no owner' }} · {{ c.locations }} location(s)</p>
+                <p class="truncate text-xs text-(--ui-text-muted)">{{ c.owner ?? 'no owner' }} · 📍 {{ c.address ?? 'no location' }}</p>
               </div>
+              <UButton variant="ghost" size="xs" icon="i-lucide-pencil" @click="openCampEdit(c)">Edit</UButton>
+              <UButton :to="`/?adminCamp=${c.id}`" variant="ghost" size="xs" icon="i-lucide-map-pin">Place</UButton>
               <UButton :color="c.hidden ? 'primary' : 'neutral'" variant="ghost" size="xs" :icon="c.hidden ? 'i-lucide-eye' : 'i-lucide-eye-off'" :loading="busy === c.id" @click="toggleHidden('camps', c.id, !c.hidden)">{{ c.hidden ? 'Show' : 'Hide' }}</UButton>
               <UButton color="error" variant="ghost" size="xs" icon="i-lucide-trash-2" :loading="busy === c.id" @click="del('camps', c.id, c.name)">Delete</UButton>
             </div>
@@ -308,5 +353,27 @@ useHead({ title: 'Admin — BurnerMap' })
         </ul>
       </section>
     </template>
+
+    <!-- edit camp details (admin) -->
+    <UModal v-model:open="campEditOpen" title="Edit camp">
+      <template #body>
+        <form class="space-y-3" @submit.prevent="saveCampEdit">
+          <UInput v-model="campForm.name" placeholder="Camp name" class="w-full" />
+          <UTextarea v-model="campForm.description" :rows="3" autoresize placeholder="Description" class="w-full" />
+          <UInput v-model="campForm.website" type="url" placeholder="Website — https://…" icon="i-lucide-link" class="w-full" />
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model="campForm.hometown" placeholder="Hometown" class="w-full" />
+            <UInput v-model="campForm.contactEmail" type="email" placeholder="Contact email" class="w-full" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model.number="campForm.frontageFt" type="number" min="0" placeholder="Frontage (ft)" class="w-full" />
+            <UInput v-model.number="campForm.depthFt" type="number" min="0" placeholder="Depth (ft)" class="w-full" />
+          </div>
+          <p class="text-xs text-(--ui-text-muted)">To move/place the pin, use “Place” on the map.</p>
+          <p v-if="campEditError" class="text-sm text-red-600">{{ campEditError }}</p>
+          <UButton type="submit" block :loading="campEditBusy" :disabled="!campForm.name.trim()">Save details</UButton>
+        </form>
+      </template>
+    </UModal>
   </UContainer>
 </template>

@@ -51,9 +51,12 @@ const navItems = [[
   { label: 'Guide', icon: 'i-lucide-compass', to: '/guide' },
 ]]
 
-// optional ?lat&lng to focus a camp coming from the Camps list
+// optional ?lat&lng to focus a camp from the Camps list, or ?adminCamp=ID to
+// place/move that camp (admin only).
 const route = useRoute()
 const focus = computed(() => {
+  if (adminPlaceCamp.value?.lat != null)
+    return { lat: adminPlaceCamp.value.lat, lng: adminPlaceCamp.value.lng! }
   const lat = Number(route.query.lat)
   const lng = Number(route.query.lng)
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
@@ -71,6 +74,31 @@ const { data: campsData, refresh: refreshCamps } = await useFetch('/api/camps')
 const { data: artData, refresh: refreshArt } = await useFetch('/api/art')
 const pins = computed<CampPin[]>(() => toPins(campsData.value))
 const artPins = computed<CampPin[]>(() => toPins(artData.value))
+
+// --- admin: place/move any camp from the map (deep-linked from /admin) -------
+const adminPlaceSaved = ref(false)
+const adminPlaceCamp = computed(() => {
+  const id = route.query.adminCamp
+  if (typeof id !== 'string' || !isAdmin.value)
+    return null
+  const c = (campsData.value as any[] | null)?.find(x => x.id === id)
+  if (!c)
+    return null
+  const loc = (c.locations ?? []).filter((l: any) => l.gpsLatitude != null)
+    .sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
+  return { id: c.id, name: c.name as string, lat: (loc?.gpsLatitude ?? null) as number | null, lng: (loc?.gpsLongitude ?? null) as number | null }
+})
+async function onAdminPlace(p: { lat: number, lng: number }) {
+  const c = adminPlaceCamp.value
+  if (!c)
+    return
+  try {
+    await $fetch('/api/locations', { method: 'POST', body: { campId: c.id, lat: p.lat, lng: p.lng } })
+    await refreshCamps()
+    adminPlaceSaved.value = true
+  }
+  catch { /* surface nothing; the marker stays for a retry */ }
+}
 
 // live Gate Road condition → colour the gate road + a status dot
 const { data: gateData } = await useFetch<{ inbound: { status: GateStatus } | null }>('/api/gate')
@@ -122,6 +150,10 @@ function onPosition(p: { lat: number, lng: number, accuracy?: number }) {
 // tapping the map (only while a drop is armed) sets the EXACT spot, then opens
 // the confirm sheet. Coordinates are stored as-is — never snapped to a street.
 function onPick(p: { lat: number, lng: number }) {
+  if (adminPlaceCamp.value) {
+    onAdminPlace(p)
+    return
+  }
   if (!dropMode.value)
     return
   pendingLoc.value = { lat: p.lat, lng: p.lng }
@@ -316,7 +348,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode" :sun-time="sunInstant" class="size-full" @position="onPosition" @pick="onPick" />
+        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" class="size-full" @position="onPosition" @pick="onPick" />
       </ClientOnly>
     </div>
 
@@ -365,6 +397,14 @@ const itemOptions = computed(() => [
       <UIcon name="i-lucide-hand-pointer" class="size-4 text-primary" />
       <span>Tap the map to place your {{ dropKind }}</span>
       <button type="button" class="text-white/60 underline hover:text-white" @click="cancelDrop">Cancel</button>
+    </div>
+
+    <!-- admin place/move banner (from /admin → "Place") -->
+    <div v-if="adminPlaceCamp" class="pointer-events-auto absolute left-1/2 top-16 z-10 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
+      <UIcon name="i-lucide-shield" class="size-4 shrink-0 text-primary" />
+      <span class="truncate">Tap to {{ adminPlaceCamp.lat != null ? 'move' : 'place' }} <b>{{ adminPlaceCamp.name }}</b></span>
+      <span v-if="adminPlaceSaved" class="shrink-0 text-green-400">saved&nbsp;✓</span>
+      <NuxtLink to="/admin" class="shrink-0 text-white/60 underline hover:text-white">Done</NuxtLink>
     </div>
 
     <!-- lower-left stack: gate status widget above the layers panel -->

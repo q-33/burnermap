@@ -11,19 +11,20 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, locationSchema.parse)
   const db = useDb()
 
-  // Verify the user owns the parent camp/art.
+  // Verify the user owns the parent camp/art — admins may place any.
+  const isAdmin = user.role === 'admin'
   if (body.campId) {
     const [c] = await db.select({ ownerId: camps.ownerId }).from(camps).where(eq(camps.id, body.campId)).limit(1)
     if (!c)
       throw createError({ statusCode: 404, statusMessage: 'Camp not found' })
-    if (c.ownerId !== user.id)
+    if (c.ownerId !== user.id && !isAdmin)
       throw createError({ statusCode: 403, statusMessage: 'You do not own that camp' })
   }
   else if (body.artId) {
     const [a] = await db.select({ ownerId: art.ownerId }).from(art).where(eq(art.id, body.artId)).limit(1)
     if (!a)
       throw createError({ statusCode: 404, statusMessage: 'Art not found' })
-    if (a.ownerId !== user.id)
+    if (a.ownerId !== user.id && !isAdmin)
       throw createError({ statusCode: 403, statusMessage: 'You do not own that art' })
   }
 
