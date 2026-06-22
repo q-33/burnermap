@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
-import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
+import type { GeoJSONSource, Map as MlMap, Marker } from 'maplibre-gl'
 import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
@@ -52,10 +52,14 @@ function applyLayerVisibility() {
       map.setFilter(id, filter)
   }
 }
-const emit = defineEmits<{ position: [{ lat: number, lng: number, accuracy?: number }] }>()
+const emit = defineEmits<{
+  position: [{ lat: number, lng: number, accuracy?: number }]
+  pick: [{ lat: number, lng: number }]
+}>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
 let map: MlMap | undefined
+let pickMarker: Marker | undefined
 
 function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
   return {
@@ -413,6 +417,32 @@ onMounted(async () => {
           .addTo(map)
       }
     })
+
+    // Tap the map to place/move a pin (so you can mark a camp/art spot without a
+    // GPS fix — e.g. off-playa). Clicks that land on an existing marker fall
+    // through to that marker's popup handler instead.
+    const interactive = ['camps', 'art', 'toilets', 'civic-dots']
+    map.on('click', (e) => {
+      if (!map)
+        return
+      const hit = map.queryRenderedFeatures(e.point, { layers: interactive.filter(id => map!.getLayer(id)) })
+      if (hit.length)
+        return
+      const { lat, lng } = e.lngLat
+      if (!pickMarker) {
+        pickMarker = new maplibregl.Marker({ color: '#e1641a', draggable: true }).setLngLat([lng, lat]).addTo(map)
+        pickMarker.on('dragend', () => {
+          const ll = pickMarker!.getLngLat()
+          emit('pick', { lat: ll.lat, lng: ll.lng })
+        })
+      }
+      else {
+        pickMarker.setLngLat([lng, lat])
+      }
+      emit('pick', { lat, lng })
+    })
+    map.getCanvas().style.cursor = 'crosshair'
+
     applyLayerVisibility()
     applyBasemap()
   })

@@ -75,7 +75,7 @@ const wx = computed(() => weatherData.value?.current ?? null)
 
 // map layer visibility (the legend doubles as the toggle control)
 const layers = reactive({ camps: true, art: true, toilets: true, medical: true, safety: true, services: true, transport: true })
-const panelOpen = ref(true)
+const panelOpen = ref(false)
 const basemap = ref<'blocks' | 'lines'>('blocks')
 
 // live GPS readout
@@ -89,6 +89,11 @@ const accuracyRough = computed(() => accuracy.value != null && accuracy.value > 
 function onPosition(p: { lat: number, lng: number, accuracy?: number }) {
   position.value = { lat: p.lat, lng: p.lng }
   accuracy.value = p.accuracy
+}
+// tapping the map places a pin (no GPS accuracy) — lets you mark a spot off-playa
+function onPick(p: { lat: number, lng: number }) {
+  position.value = { lat: p.lat, lng: p.lng }
+  accuracy.value = undefined
 }
 
 // auth form
@@ -214,7 +219,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" class="size-full" @position="onPosition" />
+        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" class="size-full" @position="onPosition" @pick="onPick" />
       </ClientOnly>
     </div>
 
@@ -332,7 +337,7 @@ const itemOptions = computed(() => [
       <div class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
         <UIcon :name="position ? 'i-lucide-navigation' : 'i-lucide-locate-fixed'" class="size-4" :class="position ? 'text-primary' : 'text-white/50'" />
         <span :class="position ? 'font-medium' : 'text-white/60'">
-          {{ readout ?? 'Tap the ⌖ to find yourself on the playa' }}
+          {{ readout ?? 'Tap the map to drop a pin — or ⌖ to find yourself on the playa' }}
         </span>
         <span v-if="accuracyLabel" class="text-xs" :class="accuracyRough ? 'text-amber-300' : 'text-white/50'">
           {{ accuracyLabel }}
