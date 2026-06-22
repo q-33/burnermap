@@ -90,6 +90,15 @@ export const gateConditionSchema = z.object({
   note: z.string().trim().max(280).optional().or(z.literal('')),
 })
 
+// Owner edits to their camp's details (not location/year).
+export const campUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(2000).optional().or(z.literal('')),
+  website: z.string().url().optional().or(z.literal('')),
+  contactEmail: z.string().email().optional().or(z.literal('')),
+  hometown: z.string().max(200).optional().or(z.literal('')),
+})
+
 // A direct message to another registered user.
 export const messageSchema = z.object({
   recipientId: z.string().uuid(),

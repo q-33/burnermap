@@ -11,7 +11,7 @@ function namedAddress(s: string | null | undefined): string | null {
 }
 
 interface Loc { addressString: string | null, gpsLatitude: number | null, gpsLongitude: number | null, createdAt: string }
-interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, owner: { id: string, displayName: string | null } | null, locations: Loc[] }
+interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, website: string | null, owner: { id: string, displayName: string | null } | null, locations: Loc[] }
 
 const { loggedIn } = useUserSession()
 const { me } = useMe()
@@ -69,6 +69,9 @@ useHead({ title: 'Camps — BurnerMap' })
         </div>
         <p v-if="c.description" class="mt-2 line-clamp-3 text-sm text-(--ui-text-muted)">{{ c.description }}</p>
         <p v-if="c.hometown" class="mt-1 text-xs text-(--ui-text-muted)">🏠 {{ c.hometown }}</p>
+        <a v-if="c.website" :href="c.website" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+          <UIcon name="i-lucide-link" class="size-3" />{{ c.website.replace(/^https?:\/\/(www\.)?/, '') }}
+        </a>
         <template v-if="mapped(c) || (c.owner && c.owner.id !== me?.id)" #footer>
           <div class="flex items-center gap-3">
             <UButton

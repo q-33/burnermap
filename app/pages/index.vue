@@ -142,7 +142,7 @@ async function logout() {
 
 // the current user's own camps + art (for picking vs creating)
 type DropKind = 'camp' | 'art'
-interface MyItem { id: string, name: string }
+interface MyItem { id: string, name: string, description?: string | null, website?: string | null, contactEmail?: string | null, hometown?: string | null }
 const { data: myCamps, refresh: refreshMineCamps } = await useFetch<MyItem[]>('/api/camps/mine', { immediate: false, default: () => [] })
 const { data: myArt, refresh: refreshMineArt } = await useFetch<MyItem[]>('/api/art/mine', { immediate: false, default: () => [] })
 watch(loggedIn, (v) => { if (v) { refreshMineCamps(); refreshMineArt() } }, { immediate: true })
@@ -239,6 +239,50 @@ async function dropPin() {
   }
 }
 
+// --- camp details (name / description / website / contact) ------------------
+const campEditOpen = ref(false)
+const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '' })
+const campSaveBusy = ref(false)
+const campSaveError = ref('')
+
+function openCampEdit() {
+  const c = myCamp.value
+  if (!c)
+    return
+  campForm.name = c.name ?? ''
+  campForm.description = c.description ?? ''
+  campForm.website = c.website ?? ''
+  campForm.hometown = c.hometown ?? ''
+  campForm.contactEmail = c.contactEmail ?? ''
+  campSaveError.value = ''
+  campEditOpen.value = true
+}
+
+async function saveCampDetails() {
+  const c = myCamp.value
+  if (!c || !campForm.name.trim())
+    return
+  campSaveBusy.value = true
+  campSaveError.value = ''
+  try {
+    await $fetch(`/api/camps/${c.id}`, { method: 'PATCH', body: { ...campForm } })
+    await Promise.all([refreshMineCamps(), refreshCamps()])
+    campEditOpen.value = false
+  }
+  catch (e: any) {
+    campSaveError.value = e?.data?.statusMessage ?? 'Could not save'
+  }
+  finally {
+    campSaveBusy.value = false
+  }
+}
+
+// jump from the details sheet into placement mode to move the pin
+function moveCampPin() {
+  campEditOpen.value = false
+  startDrop('camp')
+}
+
 const itemOptions = computed(() => [
   ...myItems.value.map(c => ({ label: c.name, value: c.id })),
   { label: `+ Create a new ${dropKind.value}`, value: '' },
@@ -275,7 +319,7 @@ const itemOptions = computed(() => [
 
       <div class="pointer-events-auto flex items-center gap-2">
         <template v-if="loggedIn">
-          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="startDrop('camp')">
+          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="myCamp ? openCampEdit() : startDrop('camp')">
             <span class="hidden sm:inline">{{ myCamp ? 'Edit my camp' : 'Drop camp' }}</span>
           </UButton>
           <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" aria-label="Drop art" @click="startDrop('art')">
@@ -440,6 +484,26 @@ const itemOptions = computed(() => [
             </UButton>
             <UButton color="neutral" variant="soft" @click="movePin">Move pin</UButton>
             <UButton color="neutral" variant="ghost" @click="cancelDrop">Cancel</UButton>
+          </div>
+        </form>
+      </template>
+    </UModal>
+
+    <!-- camp details (name / description / website / contact) -->
+    <UModal v-model:open="campEditOpen" title="My camp">
+      <template #body>
+        <form class="space-y-3" @submit.prevent="saveCampDetails">
+          <UInput v-model="campForm.name" placeholder="Camp name" class="w-full" />
+          <UTextarea v-model="campForm.description" :rows="3" autoresize placeholder="Description — what's your camp about?" class="w-full" />
+          <UInput v-model="campForm.website" type="url" placeholder="Website — https://…" icon="i-lucide-link" class="w-full" />
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model="campForm.hometown" placeholder="Hometown" class="w-full" />
+            <UInput v-model="campForm.contactEmail" type="email" placeholder="Contact email" class="w-full" />
+          </div>
+          <p v-if="campSaveError" class="text-sm text-red-600">{{ campSaveError }}</p>
+          <div class="flex gap-2">
+            <UButton type="submit" class="flex-1" :loading="campSaveBusy" :disabled="!campForm.name.trim()">Save</UButton>
+            <UButton color="neutral" variant="soft" icon="i-lucide-map-pin" @click="moveCampPin">Move pin</UButton>
           </div>
         </form>
       </template>
