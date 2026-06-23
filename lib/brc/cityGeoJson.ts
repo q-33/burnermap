@@ -108,6 +108,11 @@ export function cityGridGeoJson(): FeatureCollection {
   // on either side of the 6:00 promenade, is NOT camps — it's the open throat
   // that the keyhole opens onto. Skip those inner blocks entirely.
   const inKeyhole = (i: number, col: number) => i <= 1 && col > 5.5 && col < 6.5
+  // Radial-street density per the official 2026 plan (confirmed against the plan
+  // PDF's own vector geometry): the hour & half-hour avenues run full depth, but
+  // the quarter-hour avenues (X:15, X:45) exist ONLY from Fulcrum (F) outward.
+  // So bands inside F are split into 30-min columns; F and beyond into 15-min.
+  const F_INDEX = STREETS.indexOf('F') // ring where the quarter-hour avenues begin
   for (let i = 0; i < STREETS.length - 1; i++) {
     const rIn = STREET_RADII[STREETS[i]!]! + HALF_STREET_M
     const rOut = STREET_RADII[STREETS[i + 1]!]! - HALF_STREET_M
@@ -115,12 +120,13 @@ export function cityGridGeoJson(): FeatureCollection {
       continue
     const rMid = (rIn + rOut) / 2
     const tGap = (HALF_STREET_M / rMid) * (6 / Math.PI) // metres → clock-hours at rMid
-    for (let j = colMin; j < colMax - 1e-9; j += 0.25) {
-      const col = j + 0.125
+    const step = i >= F_INDEX ? 0.25 : 0.5 // 15-min columns from F out; 30-min inside
+    for (let j = colMin; j < colMax - 1e-9; j += step) {
+      const col = j + step / 2
       if (inKeyhole(i, col))
         continue
       const t0 = j + tGap
-      const t1 = j + 0.25 - tGap
+      const t1 = j + step - tGap
       // fade-to-white: radial (outer rings, measured from the plan) + a tip boost
       const radial = Math.max(0, (i - 5) / 5) * 0.7
       const tip = Math.max(0, (Math.abs(col - 6) - 3) / 1) * 0.3
@@ -132,16 +138,19 @@ export function cityGridGeoJson(): FeatureCollection {
 
 
   // 1c. Radial "gradient fans" — the pale wedges that radiate along every radial
-  // on the official plan. One centred on each radial column edge, apex at the
-  // Esplanade and widening outward, clipped to the tapered camp depth so they sit
-  // only on the blue. Purely decorative — they give the plan its radiating look.
+  // on the official plan. One centred on each radial column edge, widening
+  // outward, clipped to the tapered camp depth so they sit only on the blue.
+  // Half-hour spokes apex at the Esplanade; quarter-hour spokes apex at Fulcrum
+  // (F), since the quarter-hour avenues only exist from F out. Purely decorative.
+  const fRadius = STREET_RADII.F!
   for (let t = colMin; t <= colMax + 1e-9; t += 0.25) {
     // skip the radials over the Center Camp keyhole so the open throat stays clean
     if (t > 5.5 && t < 6.5)
       continue
+    const isQuarter = Math.abs(t * 2 - Math.round(t * 2)) > 1e-9
     const depth = campDepth(Math.min(colMax - 0.125, Math.max(colMin + 0.125, t)))
     const rOut = STREET_RADII[STREETS[Math.min(depth + 1, STREETS.length - 1)]!]!
-    const rIn = espRadius
+    const rIn = isQuarter ? fRadius : espRadius
     if (rOut <= rIn)
       continue
     const wHalf = 0.075 // base half-width (clock-hours) at the outer edge
