@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FEATURES } from '~~/lib/features'
-import { ROLES } from '~~/lib/roles'
+import { ROLES, roleLabel } from '~~/lib/roles'
 
 interface AdminUser { id: string, email: string, displayName: string | null, role: string, createdAt: string, features: string[] }
 interface AdminCamp {
@@ -16,6 +16,7 @@ interface Content {
 interface QueueItem { id: string, body: string, language: string | null, mediaUrl: string | null, authorName: string | null, createdAt: string, artId: string | null, artName: string }
 interface ClaimItem { id: string, message: string | null, createdAt: string, artId: string | null, artName: string, artArtist: string | null, claimant: string, claimantEmail: string | null }
 interface Report { id: string, contentType: string, contentId: string, contentName: string, reason: string | null, status: string, reporter: string | null, createdAt: string }
+interface OnlineUser { id: string, email: string, displayName: string | null, role: string, lastSeenAt: string | null }
 interface Recent { type: string, id: string, label: string, createdAt: string }
 interface Audit { id: string, action: string, actor: string, targetType: string | null, targetId: string | null, detail: string | null, createdAt: string }
 
@@ -28,6 +29,7 @@ const { data: content, refresh: refreshContent } = await useFetch<Content>('/api
 const { data: queue, refresh: refreshQueue } = await useFetch<QueueItem[]>('/api/admin/contributions', { immediate: false, default: () => [] })
 const { data: claims, refresh: refreshClaims } = await useFetch<ClaimItem[]>('/api/admin/claims', { immediate: false, default: () => [] })
 const { data: reports, refresh: refreshReports } = await useFetch<Report[]>('/api/admin/reports', { immediate: false, default: () => [] })
+const { data: online, refresh: refreshOnline } = await useFetch<OnlineUser[]>('/api/admin/online', { immediate: false, default: () => [] })
 const { data: recent, refresh: refreshRecent } = await useFetch<Recent[]>('/api/admin/recent', { immediate: false, default: () => [] })
 const { data: auditRows, refresh: refreshAudit } = await useFetch<Audit[]>('/api/admin/audit', { immediate: false, default: () => [] })
 watch(isAdmin, (v) => {
@@ -37,24 +39,32 @@ watch(isAdmin, (v) => {
     refreshQueue()
     refreshClaims()
     refreshReports()
+    refreshOnline()
     refreshRecent()
     refreshAudit()
   }
 }, { immediate: true })
+
+// "Online" = active within the last 5 minutes (a few missed 60s heartbeats).
+const ONLINE_MS = 5 * 60 * 1000
+const nowTick = ref(Date.now())
+const isOnline = (u: OnlineUser) => !!u.lastSeenAt && nowTick.value - +new Date(u.lastSeenAt) < ONLINE_MS
+const onlineCount = computed(() => (online.value ?? []).filter(isOnline).length)
 
 const openReports = computed(() => (reports.value ?? []).filter(r => r.status === 'open'))
 const tabs = computed(() => [
   { key: 'queue', label: 'Queue', n: queue.value?.length ?? 0 },
   { key: 'claims', label: 'Claims', n: claims.value?.length ?? 0 },
   { key: 'reports', label: 'Reports', n: openReports.value.length },
+  { key: 'online', label: 'Online', n: onlineCount.value },
   { key: 'people', label: 'People', n: users.value?.length ?? 0 },
   { key: 'content', label: 'Content', n: undefined },
   { key: 'recent', label: 'Recent', n: undefined },
   { key: 'audit', label: 'Audit', n: undefined },
 ] as const)
-type Tab = 'queue' | 'claims' | 'reports' | 'people' | 'content' | 'recent' | 'audit'
+type Tab = 'queue' | 'claims' | 'reports' | 'online' | 'people' | 'content' | 'recent' | 'audit'
 const route = useRoute()
-const validTabs: Tab[] = ['queue', 'claims', 'reports', 'people', 'content', 'recent', 'audit']
+const validTabs: Tab[] = ['queue', 'claims', 'reports', 'online', 'people', 'content', 'recent', 'audit']
 const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'queue')
 watch(() => route.query.tab, (t) => { if (validTabs.includes(t as Tab)) tab.value = t as Tab })
 const ctab = ref<'camps' | 'art' | 'events'>('camps')
@@ -181,6 +191,14 @@ async function decideClaim(c: ClaimItem, status: 'approved' | 'rejected') {
   finally { busy.value = '' }
 }
 
+// Keep the Online view live: re-tick "now" so the dots/labels update, and
+// re-poll the presence list while that tab is open.
+onMounted(() => {
+  const tick = setInterval(() => { nowTick.value = Date.now() }, 15_000)
+  const poll = setInterval(() => { if (isAdmin.value && tab.value === 'online') refreshOnline() }, 30_000)
+  onBeforeUnmount(() => { clearInterval(tick); clearInterval(poll) })
+})
+
 useHead({ title: 'Admin — BurnerMap' })
 </script>
 
@@ -284,6 +302,33 @@ useHead({ title: 'Admin — BurnerMap' })
           </UCard>
         </div>
         <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">No reports.</p>
+      </section>
+
+      <!-- ONLINE (presence) -->
+      <section v-show="tab === 'online'" class="mt-5">
+        <p class="mb-3 text-sm text-(--ui-text-muted)">
+          <span class="font-medium text-(--ui-text)">{{ onlineCount }}</span> online now · {{ (online?.length ?? 0) }} active recently. Updates live.
+        </p>
+        <div v-if="online?.length" class="divide-y divide-(--ui-border) overflow-hidden rounded-xl border border-(--ui-border)">
+          <div v-for="u in online" :key="u.id" class="flex items-center gap-3 px-3 py-2.5">
+            <span class="relative flex size-2.5 shrink-0">
+              <span v-if="isOnline(u)" class="absolute inline-flex size-full animate-ping rounded-full bg-green-500/60" />
+              <span class="inline-flex size-2.5 rounded-full" :class="isOnline(u) ? 'bg-green-500' : 'bg-(--ui-text-dimmed)/40'" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium">
+                {{ u.displayName || u.email }}
+                <UBadge v-if="u.role !== 'user'" color="neutral" variant="subtle" size="xs" class="ml-1">{{ roleLabel(u.role) }}</UBadge>
+                <UBadge v-if="u.id === myId" color="primary" variant="subtle" size="xs" class="ml-1">you</UBadge>
+              </p>
+              <p v-if="u.displayName" class="truncate text-xs text-(--ui-text-muted)">{{ u.email }}</p>
+            </div>
+            <span class="shrink-0 text-xs" :class="isOnline(u) ? 'text-green-600 dark:text-green-400' : 'text-(--ui-text-muted)'">
+              {{ isOnline(u) ? 'online' : (u.lastSeenAt ? rel(u.lastSeenAt) : '—') }}
+            </span>
+          </div>
+        </div>
+        <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">No activity yet.</p>
       </section>
 
       <!-- PEOPLE (roles + features) -->

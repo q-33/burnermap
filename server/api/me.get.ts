@@ -1,5 +1,5 @@
 import { and, count, eq, isNull } from 'drizzle-orm'
-import { artClaims, messages } from '../db/schema'
+import { artClaims, messages, users } from '../db/schema'
 
 // The current user with LIVE role + feature flags (vs. the session snapshot from
 // login), the unread-message count for the inbox badge, and (for admins) the
@@ -11,6 +11,8 @@ export default defineEventHandler(async (event) => {
   if (!user)
     return null
   const db = useDb()
+  // Presence: record this user as active now (for the admin "Online" view).
+  await db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, user.id)).catch(() => {})
   const [row] = await db
     .select({ n: count() }).from(messages)
     .where(and(eq(messages.recipientId, user.id), isNull(messages.readAt)))

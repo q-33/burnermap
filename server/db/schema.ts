@@ -25,6 +25,8 @@ export const users = pgTable('users', {
   // 'user' (default) | 'tco' (theme camp organizer — create/manage own camp) |
   // 'gpe' (post gate conditions) | 'org' (BM Org — manage any camp + gate) | 'admin'
   role: text('role').notNull().default('user'),
+  // Updated on each /api/me call (load + heartbeat) for the admin presence view.
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
