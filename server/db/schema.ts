@@ -109,6 +109,7 @@ export const art = pgTable('art', {
   id: uuid('id').primaryKey().defaultRandom(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
+  artist: text('artist'), // the maker(s); shown as the byline
   year: integer('year').notNull(),
   description: text('description'),
   website: text('website'),

@@ -22,6 +22,7 @@ export const campSchema = z.object({
 
 export const artSchema = z.object({
   name: z.string().trim().min(1).max(200),
+  artist: z.string().trim().max(200).optional(),
   year: z.number().int().gte(1986).lte(2100),
   description: z.string().max(2000).optional(),
   website: z.string().url().optional().or(z.literal('')),

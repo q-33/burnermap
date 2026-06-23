@@ -11,7 +11,7 @@ function namedAddress(s: string | null | undefined): string | null {
 }
 
 interface Loc { addressString: string | null, gpsLatitude: number | null, gpsLongitude: number | null, createdAt: string }
-interface Art { id: string, name: string, year: number, description: string | null, hometown: string | null, call: string | null, locations: Loc[] }
+interface Art { id: string, name: string, artist: string | null, year: number, description: string | null, hometown: string | null, call: string | null, locations: Loc[] }
 
 const q = ref('')
 const debounced = refDebounced(q, 250)
@@ -53,6 +53,7 @@ useHead({ title: 'Art — BurnerMap' })
         <div class="flex items-start justify-between gap-2">
           <div>
             <h2 class="font-semibold">{{ a.name }}</h2>
+            <p v-if="a.artist" class="text-sm text-(--ui-text-toned)">by {{ a.artist }}</p>
             <p v-if="currentLocation(a)?.addressString" class="text-sm text-primary">
               📍 {{ namedAddress(currentLocation(a)?.addressString) }}
             </p>

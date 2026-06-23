@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
     .values({
       ownerId: user.id,
       name: body.name,
+      artist: body.artist || null,
       year: body.year,
       description: body.description,
       website: body.website || null,

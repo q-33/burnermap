@@ -21,6 +21,7 @@ interface Contribution {
 interface ArtDetail {
   id: string
   name: string
+  artist: string | null
   year: number
   description: string | null
   hometown: string | null
@@ -141,6 +142,7 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
         <h1 class="font-display text-3xl font-bold uppercase tracking-tight sm:text-4xl">{{ art.name }}</h1>
         <UBadge color="neutral" variant="subtle" class="shrink-0">{{ art.year }}</UBadge>
       </div>
+      <p v-if="art.artist" class="mb-1 text-base text-(--ui-text-toned)">by {{ art.artist }}</p>
       <p v-if="currentLoc?.addressString" class="text-sm text-primary">📍 {{ namedAddress(currentLoc.addressString) }}</p>
       <p v-if="art.hometown" class="mt-1 text-sm text-(--ui-text-muted)">🏠 {{ art.hometown }}</p>
       <p v-if="art.description" class="mt-3 max-w-2xl whitespace-pre-line text-(--ui-text-muted)">{{ art.description }}</p>
