@@ -29,6 +29,7 @@ interface ArtDetail {
   call: string | null
   isOwner: boolean
   owner: { id: string, displayName: string | null, playaName: string | null } | null
+  myClaim: { status: string } | null
   locations: Loc[]
   contributions: Contribution[]
 }
@@ -124,6 +125,33 @@ async function submitReport() {
   }
 }
 
+// --- claim this artwork (ownerless art only) --------------------------------
+const claimOpen = ref(false)
+const claimMessage = ref('')
+const claimBusy = ref(false)
+const claimError = ref('')
+const claimStatus = computed(() => art.value?.myClaim?.status ?? null)
+function openClaim() {
+  claimMessage.value = ''
+  claimError.value = ''
+  claimOpen.value = true
+}
+async function submitClaim() {
+  claimBusy.value = true
+  claimError.value = ''
+  try {
+    await $fetch(`/api/art/${id.value}/claims`, { method: 'POST', body: { message: claimMessage.value } })
+    claimOpen.value = false
+    await refresh()
+  }
+  catch (e: any) {
+    claimError.value = e?.data?.statusMessage ?? 'Could not submit your claim'
+  }
+  finally {
+    claimBusy.value = false
+  }
+}
+
 useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art — BurnerMap' }))
 </script>
 
@@ -151,9 +179,40 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
         <UButton v-if="mapped" :to="`/?lat=${mapped.gpsLatitude}&lng=${mapped.gpsLongitude}`" size="xs" variant="subtle" icon="i-lucide-map-pin">View on map</UButton>
         <UButton v-if="art.owner && !art.isOwner && loggedIn" :to="`/messages/${art.owner.id}`" size="xs" variant="subtle" icon="i-lucide-mail">Message the organizer</UButton>
         <UButton v-else-if="art.owner && !art.isOwner && !loggedIn" to="/?login=1" size="xs" variant="subtle" icon="i-lucide-mail">Log in to message</UButton>
+        <!-- Claim an official, ownerless artwork -->
+        <UButton v-if="!art.owner && loggedIn && claimStatus !== 'pending'" size="xs" color="primary" variant="solid" icon="i-lucide-hand" @click="openClaim">
+          {{ claimStatus === 'rejected' ? 'Claim again' : 'Claim this artwork' }}
+        </UButton>
+        <UButton v-else-if="!art.owner && !loggedIn" to="/?login=1" size="xs" color="primary" variant="subtle" icon="i-lucide-hand">Log in to claim</UButton>
         <UButton v-if="loggedIn && !reported" size="xs" variant="ghost" color="neutral" icon="i-lucide-flag" @click="reportOpen = true">Report</UButton>
         <span v-if="reported" class="text-xs text-(--ui-text-muted)">Reported — thanks, a moderator will review.</span>
       </div>
+
+      <!-- claim status banners -->
+      <div v-if="!art.owner && claimStatus === 'pending'" class="mt-3 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-(--ui-text-toned)">
+        <UIcon name="i-lucide-clock" class="size-4 shrink-0 text-primary" />
+        Your claim is awaiting admin review. You'll get a message when it's decided.
+      </div>
+      <div v-else-if="!art.owner && claimStatus === 'rejected'" class="mt-3 flex items-center gap-2 rounded-lg border border-(--ui-border) px-3 py-2 text-sm text-(--ui-text-muted)">
+        <UIcon name="i-lucide-info" class="size-4 shrink-0" />
+        Your previous claim wasn't approved.
+      </div>
+
+      <UModal v-model:open="claimOpen" title="Claim this artwork">
+        <template #body>
+          <form class="space-y-3" @submit.prevent="submitClaim">
+            <p class="text-sm text-(--ui-text-muted)">
+              Request to manage <b>{{ art.name }}</b>. An admin reviews each claim before granting access. Add anything that helps verify you're the artist (links, contact, your role) — optional but it speeds approval.
+            </p>
+            <UTextarea v-model="claimMessage" :rows="4" class="w-full" placeholder="e.g. I'm the lead artist — here's our project page / Instagram, and the email on file is…" />
+            <p v-if="claimError" class="text-sm text-error">{{ claimError }}</p>
+            <div class="flex gap-2">
+              <UButton type="submit" :loading="claimBusy">Submit claim</UButton>
+              <UButton variant="ghost" color="neutral" @click="claimOpen = false">Cancel</UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
 
       <UModal v-model:open="reportOpen" title="Report this artwork">
         <template #body>

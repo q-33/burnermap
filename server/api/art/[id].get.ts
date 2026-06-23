@@ -1,5 +1,5 @@
-import { eq } from 'drizzle-orm'
-import { art } from '../../db/schema'
+import { and, desc, eq } from 'drizzle-orm'
+import { art, artClaims } from '../../db/schema'
 
 // Public: one artwork with its locations, open call, and contributions.
 // Anyone sees published contributions; the owner also sees pending/hidden ones.
@@ -33,5 +33,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Art not found' })
   const contributions = (row.contributions ?? []).filter(c => isOwner || c.status === 'published')
 
-  return { ...row, isOwner, contributions }
+  // The viewer's own latest claim on this (ownerless) artwork, so the page can
+  // show "claim pending / not approved" and gate the Claim button.
+  let myClaim: { status: string } | null = null
+  if (viewer && !row.ownerId) {
+    const c = await db.query.artClaims.findFirst({
+      where: and(eq(artClaims.artId, id), eq(artClaims.claimantId, viewer.id)),
+      orderBy: [desc(artClaims.createdAt)],
+      columns: { status: true },
+    })
+    myClaim = c ? { status: c.status } : null
+  }
+
+  return { ...row, isOwner, contributions, myClaim }
 })

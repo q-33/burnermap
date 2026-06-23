@@ -37,6 +37,16 @@ export const artCallSchema = z.object({
   call: z.string().max(2000).optional().or(z.literal('')),
 })
 
+// An artist's request to claim an ownerless artwork (optional identity note).
+export const artClaimSchema = z.object({
+  message: z.string().trim().max(1000).optional().or(z.literal('')),
+})
+
+// Admin decision on a claim.
+export const claimModerateSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+})
+
 // A community contribution to an artwork's open call (logged-in users only).
 export const artContributionSchema = z.object({
   body: z.string().trim().min(1).max(2000),

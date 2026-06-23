@@ -14,6 +14,7 @@ interface Content {
   events: { id: string, title: string, camp: string | null, startsAt: string }[]
 }
 interface QueueItem { id: string, body: string, language: string | null, mediaUrl: string | null, authorName: string | null, createdAt: string, artId: string | null, artName: string }
+interface ClaimItem { id: string, message: string | null, createdAt: string, artId: string | null, artName: string, artArtist: string | null, claimant: string, claimantEmail: string | null }
 interface Report { id: string, contentType: string, contentId: string, contentName: string, reason: string | null, status: string, reporter: string | null, createdAt: string }
 interface Recent { type: string, id: string, label: string, createdAt: string }
 interface Audit { id: string, action: string, actor: string, targetType: string | null, targetId: string | null, detail: string | null, createdAt: string }
@@ -25,6 +26,7 @@ const myId = computed(() => me.value?.id)
 const { data: users, refresh: refreshUsers } = await useFetch<AdminUser[]>('/api/admin/users', { immediate: false, default: () => [] })
 const { data: content, refresh: refreshContent } = await useFetch<Content>('/api/admin/content', { immediate: false, default: () => ({ camps: [], art: [], events: [] }) })
 const { data: queue, refresh: refreshQueue } = await useFetch<QueueItem[]>('/api/admin/contributions', { immediate: false, default: () => [] })
+const { data: claims, refresh: refreshClaims } = await useFetch<ClaimItem[]>('/api/admin/claims', { immediate: false, default: () => [] })
 const { data: reports, refresh: refreshReports } = await useFetch<Report[]>('/api/admin/reports', { immediate: false, default: () => [] })
 const { data: recent, refresh: refreshRecent } = await useFetch<Recent[]>('/api/admin/recent', { immediate: false, default: () => [] })
 const { data: auditRows, refresh: refreshAudit } = await useFetch<Audit[]>('/api/admin/audit', { immediate: false, default: () => [] })
@@ -33,6 +35,7 @@ watch(isAdmin, (v) => {
     refreshUsers()
     refreshContent()
     refreshQueue()
+    refreshClaims()
     refreshReports()
     refreshRecent()
     refreshAudit()
@@ -42,15 +45,16 @@ watch(isAdmin, (v) => {
 const openReports = computed(() => (reports.value ?? []).filter(r => r.status === 'open'))
 const tabs = computed(() => [
   { key: 'queue', label: 'Queue', n: queue.value?.length ?? 0 },
+  { key: 'claims', label: 'Claims', n: claims.value?.length ?? 0 },
   { key: 'reports', label: 'Reports', n: openReports.value.length },
   { key: 'people', label: 'People', n: users.value?.length ?? 0 },
   { key: 'content', label: 'Content', n: undefined },
   { key: 'recent', label: 'Recent', n: undefined },
   { key: 'audit', label: 'Audit', n: undefined },
 ] as const)
-type Tab = 'queue' | 'reports' | 'people' | 'content' | 'recent' | 'audit'
+type Tab = 'queue' | 'claims' | 'reports' | 'people' | 'content' | 'recent' | 'audit'
 const route = useRoute()
-const validTabs: Tab[] = ['queue', 'reports', 'people', 'content', 'recent', 'audit']
+const validTabs: Tab[] = ['queue', 'claims', 'reports', 'people', 'content', 'recent', 'audit']
 const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'queue')
 watch(() => route.query.tab, (t) => { if (validTabs.includes(t as Tab)) tab.value = t as Tab })
 const ctab = ref<'camps' | 'art' | 'events'>('camps')
@@ -170,6 +174,13 @@ async function resolveReport(r: Report, status: 'resolved' | 'dismissed') {
   finally { busy.value = '' }
 }
 
+async function decideClaim(c: ClaimItem, status: 'approved' | 'rejected') {
+  busy.value = c.id
+  try { await $fetch(`/api/admin/claims/${c.id}`, { method: 'PATCH', body: { status } }); await Promise.all([refreshClaims(), refreshContent(), refreshAudit()]) }
+  catch (e: any) { msg.value = e?.data?.statusMessage ?? 'Could not update claim' }
+  finally { busy.value = '' }
+}
+
 useHead({ title: 'Admin — BurnerMap' })
 </script>
 
@@ -222,6 +233,31 @@ useHead({ title: 'Admin — BurnerMap' })
           </UCard>
         </div>
         <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">Nothing waiting. 🎉</p>
+      </section>
+
+      <!-- CLAIMS -->
+      <section v-show="tab === 'claims'" class="mt-5">
+        <p class="mb-3 text-sm text-(--ui-text-muted)">Artists requesting to manage an artwork. Approving transfers ownership to them and notifies them.</p>
+        <div v-if="claims?.length" class="space-y-2">
+          <UCard v-for="c in claims" :key="c.id">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-sm font-medium">
+                  <NuxtLink v-if="c.artId" :to="`/art/${c.artId}`" class="text-primary">{{ c.artName }}</NuxtLink>
+                  <span v-else>{{ c.artName }}</span>
+                  <span v-if="c.artArtist" class="text-(--ui-text-muted)"> · by {{ c.artArtist }}</span>
+                </p>
+                <p class="mt-0.5 text-xs text-(--ui-text-muted)">Claimed by {{ c.claimant }}<span v-if="c.claimantEmail"> · {{ c.claimantEmail }}</span> · {{ rel(c.createdAt) }}</p>
+                <p v-if="c.message" class="mt-2 whitespace-pre-line rounded-md bg-(--ui-bg-muted) px-2.5 py-1.5 text-sm">{{ c.message }}</p>
+              </div>
+              <div class="flex shrink-0 gap-1">
+                <UButton size="xs" color="primary" variant="soft" :loading="busy === c.id" @click="decideClaim(c, 'approved')">Approve</UButton>
+                <UButton size="xs" color="neutral" variant="ghost" :loading="busy === c.id" @click="decideClaim(c, 'rejected')">Reject</UButton>
+              </div>
+            </div>
+          </UCard>
+        </div>
+        <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">No pending claims. 🎉</p>
       </section>
 
       <!-- REPORTS -->

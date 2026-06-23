@@ -143,6 +143,26 @@ export const artContributions = pgTable('art_contributions', {
   check('art_contributions_status_chk', sql`status in ('pending', 'published', 'hidden')`),
 ])
 
+// An artist's request to claim (own) an official, ownerless artwork. An admin
+// approves through the site; approval sets art.ownerId = claimantId.
+// status: 'pending' (awaiting review) | 'approved' | 'rejected'.
+export const artClaims = pgTable('art_claims', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  artId: uuid('art_id').notNull().references(() => art.id, { onDelete: 'cascade' }),
+  claimantId: uuid('claimant_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  message: text('message'),
+  status: text('status').notNull().default('pending'),
+  reviewedById: uuid('reviewed_by_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('art_claims_status_idx').on(t.status),
+  index('art_claims_art_idx').on(t.artId, t.status),
+  index('art_claims_claimant_idx').on(t.claimantId),
+  check('art_claims_status_chk', sql`status in ('pending', 'approved', 'rejected')`),
+])
+
 export const locations = pgTable('locations', {
   id: uuid('id').primaryKey().defaultRandom(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
@@ -179,12 +199,19 @@ export const eventsRelations = relations(events, ({ one }) => ({
 export const artRelations = relations(art, ({ many, one }) => ({
   locations: many(locations),
   contributions: many(artContributions),
+  claims: many(artClaims),
   owner: one(users, { fields: [art.ownerId], references: [users.id] }),
 }))
 
 export const artContributionsRelations = relations(artContributions, ({ one }) => ({
   art: one(art, { fields: [artContributions.artId], references: [art.id] }),
   contributor: one(users, { fields: [artContributions.contributorId], references: [users.id] }),
+}))
+
+export const artClaimsRelations = relations(artClaims, ({ one }) => ({
+  art: one(art, { fields: [artClaims.artId], references: [art.id] }),
+  claimant: one(users, { fields: [artClaims.claimantId], references: [users.id] }),
+  reviewer: one(users, { fields: [artClaims.reviewedById], references: [users.id] }),
 }))
 
 export const contentReportsRelations = relations(contentReports, ({ one }) => ({

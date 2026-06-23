@@ -36,6 +36,7 @@ const userMenu = computed(() => {
     tools.push(
       { label: 'Admin dashboard', icon: 'i-lucide-shield', to: '/admin' },
       { label: 'Review queue', icon: 'i-lucide-inbox', to: { path: '/admin', query: { tab: 'queue' } } },
+      { label: 'Art claims', icon: 'i-lucide-hand', to: { path: '/admin', query: { tab: 'claims' } } },
       { label: 'Reports', icon: 'i-lucide-flag', to: { path: '/admin', query: { tab: 'reports' } } },
       { label: 'People & roles', icon: 'i-lucide-users', to: { path: '/admin', query: { tab: 'people' } } },
       { label: 'Audit log', icon: 'i-lucide-scroll-text', to: { path: '/admin', query: { tab: 'audit' } } },
