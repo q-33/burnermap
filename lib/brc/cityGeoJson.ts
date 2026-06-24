@@ -196,18 +196,22 @@ export function cityGridGeoJson(): FeatureCollection {
 
 
 
-  // 4. Cardinal avenues through the Man, the 12:00 promenade + end circle, Man circle
+  // 4. Cardinal avenues radiating from the Man circle, the 12:00 promenade + end
+  // circle, and the Man circle itself. The avenues stop at the circle's edge so
+  // the inside of the Man circle stays clear (no lines crossing the center).
+  const MAN_R = 42 // the Man circle radius (m)
   const radial = (t: number, a: number, b: number) => [radialPoint(t, a), radialPoint(t, b)].map(toLngLat)
-  push('avenue', { type: 'LineString', coordinates: radial(9, espRadius, 0).concat(radial(3, 0, espRadius)) })
-  push('avenue', { type: 'LineString', coordinates: radial(12, 0, 900) })
+  push('avenue', { type: 'LineString', coordinates: radial(9, espRadius, MAN_R) })
+  push('avenue', { type: 'LineString', coordinates: radial(3, MAN_R, espRadius) })
+  push('avenue', { type: 'LineString', coordinates: radial(12, MAN_R, 900) })
   push('avenue', { type: 'LineString', coordinates: circleRing(radialPoint(12, 900), 45) })
-  push('avenue', { type: 'LineString', coordinates: circleRing(MAN, 42) })
+  push('avenue', { type: 'LineString', coordinates: circleRing(MAN, MAN_R) })
 
   // 5. The 6:00 axis: an inner promenade from the Man to Center Camp, then the
   // road resumes OUTSIDE Center Camp and runs out to the gate. The road rings
   // Center Camp via Rod's Ring Road (the portal circle below) — it never cuts
   // straight through the plaza.
-  push('avenue', { type: 'LineString', coordinates: radial(6, 0, CANOPY_M - CENTER_CAMP_R) })
+  push('avenue', { type: 'LineString', coordinates: radial(6, MAN_R, CANOPY_M - CENTER_CAMP_R) })
   push('gate-road', { type: 'LineString', coordinates: radial(6, CANOPY_M + CENTER_CAMP_R, 2350) })
 
   // Airport Road — branches off the 5:00 radial at the outer street and runs out
