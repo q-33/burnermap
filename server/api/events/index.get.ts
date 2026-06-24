@@ -9,15 +9,26 @@ export default defineEventHandler(async (event) => {
   // "now" as a playa wall-clock string for comparing against timestamp column
   const nowIso = new Date().toISOString().slice(0, 19)
 
-  return db.query.events.findMany({
+  const rows = await db.query.events.findMany({
     where: includeAll ? undefined : gte(events.startsAt, nowIso),
     orderBy: [asc(events.startsAt)],
     limit: 500,
     with: {
       camp: {
-        columns: { id: true, name: true },
+        columns: { id: true, name: true, hidden: true },
         with: { locations: { columns: { addressString: true, createdAt: true } } },
       },
     },
   })
+  // A moderated (hidden) camp's events must not re-surface its name/location.
+  return rows
+    .filter(r => !r.camp?.hidden)
+    .map((r) => {
+      const o = { ...r } as Record<string, any>
+      if (o.camp) {
+        o.camp = { ...o.camp }
+        delete o.camp.hidden
+      }
+      return o
+    })
 })

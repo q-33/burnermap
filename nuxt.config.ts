@@ -21,6 +21,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // server-only secret, read from DATABASE_URL env (.env / DO secret)
     databaseUrl: process.env.DATABASE_URL,
+    // nuxt-auth-utils session: bound the sealed cookie's lifetime so a captured
+    // cookie can't be replayed indefinitely (there's no server-side revocation).
+    session: {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    },
     public: {
       // The surveyed golden spike as "lat,lng" (NUXT_PUBLIC_GOLDEN_SPIKE). Set
       // this DO env var when Burning Man publishes the 2026 coordinate and the

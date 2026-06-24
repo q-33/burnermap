@@ -1,18 +1,17 @@
 import { and, count, eq, isNull } from 'drizzle-orm'
-import { artClaims, messages, users } from '../db/schema'
+import { artClaims, messages } from '../db/schema'
 
 // The current user with LIVE role + feature flags (vs. the session snapshot from
 // login), the unread-message count for the inbox badge, and (for admins) the
 // pending art-claim count for the admin nav badge. The client fetches this on
 // load so role/feature grants apply without requiring a re-login.
+// Read-only (no side effects) — presence is recorded via POST /api/presence.
 // Returns null when not signed in.
 export default defineEventHandler(async (event) => {
   const user = await getFreshUser(event)
   if (!user)
     return null
   const db = useDb()
-  // Presence: record this user as active now (for the admin "Online" view).
-  await db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, user.id)).catch(() => {})
   const [row] = await db
     .select({ n: count() }).from(messages)
     .where(and(eq(messages.recipientId, user.id), isNull(messages.readAt)))

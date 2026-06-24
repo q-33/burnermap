@@ -241,7 +241,7 @@ useHead({ title: 'Admin — BurnerMap' })
                   <span v-else>{{ c.artName }}</span>
                   <span v-if="c.language"> · {{ c.language }}</span> · {{ c.authorName || 'Anonymous' }} · {{ rel(c.createdAt) }}
                 </p>
-                <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" class="text-xs text-primary underline">attached link ↗</a>
+                <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary underline">attached link ↗</a>
               </div>
               <div class="flex shrink-0 gap-1">
                 <UButton size="xs" color="primary" variant="soft" :loading="busy === c.id" @click="moderate(c, 'published')">Approve</UButton>

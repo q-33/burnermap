@@ -6,10 +6,13 @@ export default defineNuxtPlugin(() => {
   const { refreshMe } = useMe()
 
   const ping = () => {
-    if (loggedIn.value && document.visibilityState === 'visible')
-      refreshMe()
+    if (loggedIn.value && document.visibilityState === 'visible') {
+      refreshMe() // refresh role/badges
+      $fetch('/api/presence', { method: 'POST' }).catch(() => {}) // record presence
+    }
   }
 
+  ping() // register presence shortly after load
   const timer = window.setInterval(ping, 60_000)
   document.addEventListener('visibilitychange', ping)
 

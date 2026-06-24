@@ -282,7 +282,7 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
                   <span v-if="c.language">{{ c.language }} · </span>{{ c.authorName || 'Anonymous' }}
                   <UBadge v-if="c.status === 'hidden'" size="xs" color="neutral" variant="subtle" class="ml-1">hidden</UBadge>
                 </p>
-                <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" class="text-xs text-primary underline">attached link ↗</a>
+                <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary underline">attached link ↗</a>
               </div>
               <div class="flex shrink-0 gap-1">
                 <UButton size="xs" color="primary" variant="soft" @click="moderate(c, 'published')">Publish</UButton>
@@ -306,7 +306,7 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
               <span v-if="c.language" class="font-medium text-(--ui-text)">{{ c.language }}</span>
               <span v-if="c.language"> · </span>{{ c.authorName || 'Anonymous' }}
             </p>
-            <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" class="text-xs text-primary underline">attached link ↗</a>
+            <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary underline">attached link ↗</a>
             <div v-if="art.isOwner" class="mt-2">
               <UButton size="xs" color="neutral" variant="ghost" @click="moderate(c, 'hidden')">Hide</UButton>
             </div>

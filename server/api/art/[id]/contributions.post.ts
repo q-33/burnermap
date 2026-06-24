@@ -10,12 +10,18 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing id' })
 
   const user = await requireUser(event)
+  // Cap contribution volume per user (queue-spam guard).
+  rateLimit(event, 'contribution', 10, 10 * 60_000, user.id)
   const body = await readValidatedBody(event, artContributionSchema.parse)
   const db = useDb()
 
-  const target = await db.query.art.findFirst({ where: eq(art.id, id), columns: { id: true } })
-  if (!target)
+  const target = await db.query.art.findFirst({ where: eq(art.id, id), columns: { id: true, call: true, hidden: true } })
+  if (!target || target.hidden)
     throw createError({ statusCode: 404, statusMessage: 'Art not found' })
+  // Only artworks with an open call accept contributions — stops queue spam on
+  // the 250+ official pieces that never opened one.
+  if (!target.call)
+    throw createError({ statusCode: 400, statusMessage: 'This artwork isn’t taking contributions right now.' })
 
   const [created] = await db
     .insert(artContributions)

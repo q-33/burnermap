@@ -51,7 +51,8 @@ export const claimModerateSchema = z.object({
 export const artContributionSchema = z.object({
   body: z.string().trim().min(1).max(2000),
   language: z.string().trim().max(80).optional().or(z.literal('')),
-  mediaUrl: z.string().url().max(500).optional().or(z.literal('')),
+  // http(s) only — reject javascript:/data: URLs that .url() would otherwise allow.
+  mediaUrl: z.string().url().max(500).regex(/^https?:\/\//i, 'Link must start with http:// or https://').optional().or(z.literal('')),
 })
 
 // Owner moderation: publish or hide a submitted contribution.

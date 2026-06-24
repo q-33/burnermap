@@ -8,7 +8,9 @@ export default defineEventHandler(async (event) => {
   if (!id)
     throw createError({ statusCode: 400, statusMessage: 'Missing id' })
 
-  const viewer = await getOptionalUser(event)
+  // Live role (not the session snapshot) so a just-demoted admin can't still
+  // read hidden art. Returns null without a DB hit for anonymous viewers.
+  const viewer = await getFreshUser(event)
   const db = useDb()
 
   const row = await db.query.art.findFirst({
