@@ -18,6 +18,18 @@ async function logout() {
   await useUserSession().fetch()
   await navigateTo('/')
 }
+
+// Account dropdown — clicking the name opens this menu (it must NOT log out).
+const accountMenu = computed(() => {
+  const items: any[] = [
+    [{ label: user.value?.displayName || user.value?.email || 'Account', type: 'label' as const }],
+    [{ label: 'Messages', icon: 'i-lucide-mail', to: '/messages' }],
+  ]
+  if (isAdmin.value)
+    items.push([{ label: 'Admin dashboard', icon: 'i-lucide-shield', to: '/admin' }])
+  items.push([{ label: 'Log out', icon: 'i-lucide-log-out', color: 'error' as const, onSelect: logout }])
+  return items
+})
 </script>
 
 <template>
@@ -60,9 +72,11 @@ async function logout() {
           <UChip v-if="loggedIn" :text="unreadMessages" :show="unreadMessages > 0" color="primary" size="2xl">
             <UButton to="/messages" size="sm" color="neutral" variant="ghost" icon="i-lucide-mail" square aria-label="Messages" />
           </UChip>
-          <UButton v-if="loggedIn" size="sm" color="neutral" variant="soft" icon="i-lucide-user" @click="logout">
-            {{ user?.displayName || 'Log out' }}
-          </UButton>
+          <UDropdownMenu v-if="loggedIn" :items="accountMenu" :content="{ align: 'end', sideOffset: 6 }">
+            <UButton size="sm" color="neutral" variant="soft" icon="i-lucide-user" trailing-icon="i-lucide-chevron-down">
+              <span class="hidden max-w-28 truncate sm:inline">{{ user?.displayName || 'Account' }}</span>
+            </UButton>
+          </UDropdownMenu>
           <UButton v-else to="/?login=1" size="sm" color="primary" variant="soft">
             Log in
           </UButton>
