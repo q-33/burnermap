@@ -227,8 +227,10 @@ export function cityGridGeoJson(): FeatureCollection {
   // Per the official 2026 measurements (plazas centred at 3,215 ft / 4,825 ft).
   const bRing = STREET_RADII.B!
   const gRing = STREET_RADII.G!
-  // All clock plazas are 30 m-radius circles per the surveyed GIS polygons.
-  const PR = 30
+  // Clock-plaza radius. Smaller than the surveyed 30 m so the open circle reads
+  // as a tidy plaza the camp blocks sit close to, rather than a large white disc
+  // that merges with the street channels (tune by eye against the official plan).
+  const PR = 20
   const plazas: { time: number, ringM: number, radiusM: number, label?: string }[] = [
     // Bradbury (B) ring — labelled
     { time: 3, ringM: bRing, radiusM: PR, label: '3:00 Plaza' },
