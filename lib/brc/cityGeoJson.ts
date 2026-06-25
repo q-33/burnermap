@@ -251,6 +251,28 @@ export function cityGridGeoJson(): FeatureCollection {
   push('avenue', { type: 'LineString', coordinates: [toLngLat(bl), toLngLat(gateL)] })
   push('avenue', { type: 'LineString', coordinates: [toLngLat(br), toLngLat(gateR)] })
 
+  // Gate throat: the two road edges neck in from the gate opening (±GATE_HALF)
+  // to a narrow throat (±THROAT_HALF) and run straight out past the fence,
+  // flanking the 6:00 gate-road centreline — the official plan's entrance shape.
+  const r6 = radialPoint(6, 1000)
+  const e6 = (r6.lng - MAN.lng) * mLng
+  const n6 = (r6.lat - MAN.lat) * M_PER_DEG_LAT
+  const rl6 = Math.hypot(e6, n6) || 1
+  const tanU: [number, number] = [-n6 / rl6, e6 / rl6] // tangential unit at 6:00
+  const gatePt = (dist: number, lat: number): { lat: number, lng: number } => {
+    const c = radialPoint(6, dist)
+    return { lat: c.lat + (tanU[1] * lat) / M_PER_DEG_LAT, lng: c.lng + (tanU[0] * lat) / mLng }
+  }
+  const THROAT_HALF = 22 // half-width of the necked throat (m)
+  for (const sgn of [-1, 1]) {
+    const open = sgn < 0 ? gateL : gateR // the gate opening end on the perimeter road
+    push('avenue', { type: 'LineString', coordinates: [
+      toLngLat(open),
+      toLngLat(gatePt(2120, sgn * THROAT_HALF)),
+      toLngLat(gatePt(2330, sgn * THROAT_HALF)),
+    ] })
+  }
+
   // Airport Road — branches off the 5:00 radial at the outer street and runs out
   // to the BRC Municipal Airport (88NV), south-east of the city beyond the fence.
   const AIRPORT: [number, number] = [-119.2107394, 40.7618388]
