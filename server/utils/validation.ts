@@ -90,7 +90,7 @@ export const eventSchema = z.object({
 
 // Admin: set a user's role.
 export const roleSchema = z.object({
-  role: z.enum(['user', 'gpe', 'admin', 'org', 'tco']),
+  role: z.enum(['user', 'gpe', 'admin', 'org', 'tco', 'hubs']),
 })
 
 // Admin: set the full set of a user's granted feature flags.

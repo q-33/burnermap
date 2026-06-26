@@ -1,4 +1,4 @@
-import { canCreateCamp, canManageAnyCamp, canPostGate } from '~~/lib/roles'
+import { canCreateCamp, canManageAnyCamp, canOwnMultipleCamps, canPostGate } from '~~/lib/roles'
 
 export interface Me { id: string, email: string, displayName: string | null, role: string, features: string[], unreadMessages?: number, pendingClaims?: number }
 
@@ -14,6 +14,8 @@ export function useMe() {
   // Camp capabilities (single source of truth in ~~/lib/roles).
   const canManageCamps = computed(() => canManageAnyCamp(me.value?.role))
   const canMakeCamp = computed(() => canCreateCamp(me.value?.role))
+  // May own more than one camp (Hubs, plus Org/admins). Drives the multi-camp UI.
+  const canMultiCamp = computed(() => canOwnMultipleCamps(me.value?.role))
   const unreadMessages = computed(() => me.value?.unreadMessages ?? 0)
   const pendingClaims = computed(() => me.value?.pendingClaims ?? 0)
 
@@ -31,5 +33,5 @@ export function useMe() {
     }
   }
 
-  return { me, isAdmin, isOrg, isTco, isGpe, canManageCamps, canMakeCamp, unreadMessages, pendingClaims, hasFeature, refreshMe }
+  return { me, isAdmin, isOrg, isTco, isGpe, canManageCamps, canMakeCamp, canMultiCamp, unreadMessages, pendingClaims, hasFeature, refreshMe }
 }

@@ -16,7 +16,7 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
-const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, unreadMessages, pendingClaims } = useMe()
+const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, canMultiCamp, unreadMessages, pendingClaims } = useMe()
 
 // account dropdown — quick links to messages + the admin/GPE tools + log out
 const userMenu = computed(() => {
@@ -122,8 +122,9 @@ const editCamp = computed(() => {
   const c = (campsData.value as any[] | null)?.find(x => x.id === id)
   if (!c)
     return null
-  // Boundary editing is open to camp managers (admin/Org) or the camp's owner.
-  if (!canManageCamps.value && myCamp.value?.id !== id)
+  // Boundary editing is open to camp managers (admin/Org) or the camp's owner
+  // (any camp they own — Hubs may own several).
+  if (!canManageCamps.value && !(myCamps.value ?? []).some(c => c.id === id))
     return null
   const loc = (c.locations ?? []).filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
     .sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
@@ -314,8 +315,10 @@ const hasLocation = computed(() => (usingManual.value && !!manualParsed.value) |
 const creatingNew = computed(() => selectedId.value === '')
 const myItems = computed<MyItem[]>(() => (dropKind.value === 'camp' ? myCamps.value : myArt.value) ?? [])
 
-// Arm placement mode: the user then taps the map to set the spot. For a camp the
-// user already owns, this edits (moves) it; you can't create a second camp.
+// Arm placement mode: the user then taps the map to set the spot. For a single-
+// camp user who already owns one, this edits (moves) it — you can't make a second.
+// Hubs (canMultiCamp) default to creating another camp, like art, and may pick an
+// existing camp from the drop sheet to move instead.
 async function startDrop(kind: DropKind) {
   dropKind.value = kind
   dropError.value = ''
@@ -323,8 +326,14 @@ async function startDrop(kind: DropKind) {
   manualAddress.value = ''
   if (kind === 'camp') {
     await refreshMineCamps()
-    selectedId.value = myCamp.value?.id ?? ''
-    newName.value = myCamp.value?.name ?? ''
+    if (canMultiCamp.value) {
+      selectedId.value = ''
+      newName.value = ''
+    }
+    else {
+      selectedId.value = myCamp.value?.id ?? ''
+      newName.value = myCamp.value?.name ?? ''
+    }
   }
   else {
     await refreshMineArt()
@@ -380,14 +389,24 @@ async function dropPin() {
 
 // --- camp details (name / description / website / contact) ------------------
 const campEditOpen = ref(false)
+// The camp the details sheet is editing. Single-camp users only ever edit their
+// one camp; Hubs edit whichever camp they picked in the drop sheet.
+const campEditId = ref<string>('')
 const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null })
 const campSaveBusy = ref(false)
 const campSaveError = ref('')
 
-function openCampEdit() {
-  const c = myCamp.value
+// The camp currently in focus: the one picked in the drop sheet if it's mine,
+// else my (first/only) camp. Lets Hubs edit/move any camp they own.
+const currentCamp = computed<MyItem | null>(() =>
+  (myCamps.value ?? []).find(c => c.id === selectedId.value) ?? myCamp.value,
+)
+
+function openCampEdit(camp: MyItem | null = currentCamp.value) {
+  const c = camp
   if (!c)
     return
+  campEditId.value = c.id
   campForm.name = c.name ?? ''
   campForm.description = c.description ?? ''
   campForm.website = c.website ?? ''
@@ -399,14 +418,21 @@ function openCampEdit() {
   campEditOpen.value = true
 }
 
+// From the drop sheet: edit the picked camp's details instead of moving its pin.
+function editSelectedCampDetails() {
+  const c = currentCamp.value
+  cancelDrop()
+  openCampEdit(c)
+}
+
 async function saveCampDetails() {
-  const c = myCamp.value
-  if (!c || !campForm.name.trim())
+  const id = campEditId.value
+  if (!id || !campForm.name.trim())
     return
   campSaveBusy.value = true
   campSaveError.value = ''
   try {
-    await $fetch(`/api/camps/${c.id}`, { method: 'PATCH', body: { ...campForm } })
+    await $fetch(`/api/camps/${id}`, { method: 'PATCH', body: { ...campForm } })
     await Promise.all([refreshMineCamps(), refreshCamps()])
     campEditOpen.value = false
   }
@@ -418,18 +444,22 @@ async function saveCampDetails() {
   }
 }
 
-// jump from the details sheet into placement mode to move the pin
-function moveCampPin() {
+// jump from the details sheet into placement mode to move this camp's pin
+async function moveCampPin() {
+  const id = campEditId.value
   campEditOpen.value = false
-  startDrop('camp')
+  await startDrop('camp')
+  // Re-target the camp we were editing (startDrop defaults Hubs to create-new).
+  if (id)
+    selectedId.value = id
 }
 
-// jump from the details sheet into the live boundary editor for my own camp
+// jump from the details sheet into the live boundary editor for this camp
 function editMyBoundary() {
-  if (!myCamp.value)
+  if (!campEditId.value)
     return
   campEditOpen.value = false
-  navigateTo({ query: { ...route.query, editCamp: myCamp.value.id } })
+  navigateTo({ query: { ...route.query, editCamp: campEditId.value } })
 }
 
 const itemOptions = computed(() => [
@@ -468,9 +498,10 @@ const itemOptions = computed(() => [
 
       <div class="pointer-events-auto flex items-center gap-2">
         <template v-if="loggedIn">
-          <!-- Any signed-in user can drop a camp (or edit the one they own). -->
-          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="myCamp ? openCampEdit() : startDrop('camp')">
-            <span class="hidden sm:inline">{{ myCamp ? 'Edit my camp' : 'Drop camp' }}</span>
+          <!-- Any signed-in user can drop a camp (or edit the one they own). Hubs
+               always get "Drop camp" since they may own several. -->
+          <UButton size="sm" color="primary" :icon="(myCamp && !canMultiCamp) ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="(myCamp && !canMultiCamp) ? 'Edit my camp' : 'Drop camp'" @click="(myCamp && !canMultiCamp) ? openCampEdit() : startDrop('camp')">
+            <span class="hidden sm:inline">{{ (myCamp && !canMultiCamp) ? 'Edit my camp' : 'Drop camp' }}</span>
           </UButton>
           <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" aria-label="Drop art" @click="startDrop('art')">
             <span class="hidden sm:inline">Drop art</span>
@@ -685,13 +716,22 @@ const itemOptions = computed(() => [
             Location: <b>{{ effectiveAddressNamed ?? '—' }}</b>
             <span class="text-(--ui-text-muted)"> · {{ usingManual ? 'typed' : 'exact pin' }}</span>
           </p>
-          <!-- art only: pick which artwork (you can have several). A camp is one per user. -->
+          <!-- Pick which item to move, or create a new one. Art always supports
+               several; camps do too for Hubs (otherwise a camp is one per user). -->
           <USelect
-            v-if="dropKind === 'art' && myItems.length"
+            v-if="(dropKind === 'art' || canMultiCamp) && myItems.length"
             v-model="selectedId"
             :items="itemOptions"
             class="w-full"
           />
+          <!-- Hubs: edit the picked camp's details instead of moving its pin. -->
+          <UButton
+            v-if="dropKind === 'camp' && !creatingNew"
+            block color="neutral" variant="soft" icon="i-lucide-pencil"
+            @click="editSelectedCampDetails"
+          >
+            Edit this camp's details
+          </UButton>
           <UInput
             v-if="creatingNew"
             v-model="newName"
@@ -737,7 +777,7 @@ const itemOptions = computed(() => [
             <UButton type="submit" class="flex-1" :loading="campSaveBusy" :disabled="!campForm.name.trim()">Save</UButton>
             <UButton color="neutral" variant="soft" icon="i-lucide-map-pin" @click="moveCampPin">Move pin</UButton>
           </div>
-          <UButton v-if="myCamp" block color="success" variant="soft" icon="i-lucide-frame" @click="editMyBoundary">Edit boundary on map</UButton>
+          <UButton v-if="campEditId" block color="success" variant="soft" icon="i-lucide-frame" @click="editMyBoundary">Edit boundary on map</UButton>
         </form>
       </template>
     </UModal>
