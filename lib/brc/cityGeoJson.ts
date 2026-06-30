@@ -399,7 +399,7 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   { name: 'GPE', category: 'safety', at: { time: 5.75, street: 'E' }, note: 'Gate, Perimeter & Exodus (The Black Hole) · also runs Gate Road outposts (approx.)' },
   // Services (teal)
   { name: 'Ice · main', category: 'services', at: { time: 6.25, street: 'B' }, note: 'Arctica ice (main) · Center Camp Plaza' },
-  { name: 'Playa Info', category: 'services', at: { time: 5.75, street: 'Esplanade' }, note: 'Info · Lost & Found · VRT volunteer resources' },
+  { name: 'Playa Info', category: 'services', at: { time: 5.9, street: 'Esplanade' }, note: 'Info · Lost & Found · VRT volunteer resources · Center Camp ~6:00 (2026)' },
   { name: 'ARTery', category: 'services', at: { time: 6.25, street: 'Esplanade' }, note: 'Art HQ · registration, lighting & fire-safety sign-off' },
   { name: 'Media Mecca', category: 'services', at: { time: 6.36, street: 'Esplanade' }, note: 'Press & media HQ · next to the ARTery' },
   { name: 'Recycle Camp', category: 'services', at: { time: 5.58, street: 'Esplanade' }, note: 'Aluminum-can recycling & education' },
@@ -418,14 +418,14 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   // the 6:00 Center Camp plaza along the 5:30–6:30 Esplanade/A arc.
   { name: 'Census', category: 'services', at: { time: 6.45, street: 'A' }, note: 'Participant census · 6:30 wedge (2026, approx.)' },
   { name: 'Volunteer Village', category: 'services', at: { time: 7.25, street: 'A' }, note: 'Volunteer HQ / village · ~7:15 & A (2026 Placement, approx.)' },
-  { name: 'BMIR', category: 'services', at: { time: 5.95, street: 'Esplanade' }, note: 'BMIR 94.5 FM · Burning Man Information Radio (Center Camp ring, approx.)' },
+  { name: 'BMIR', category: 'services', at: { time: 5.85, street: 'Esplanade' }, note: 'BMIR 94.5 FM · Burning Man Information Radio (Center Camp ring, approx.)' },
   { name: 'Placement HQ', category: 'services', at: { time: 6.1, street: 'Esplanade' }, note: 'Theme-camp Placement HQ (Center Camp ring, approx.)' },
-  { name: 'V-Spot', category: 'services', at: { time: 5.85, street: 'A' }, note: 'Volunteer sign-up (V-Spot) · Center Camp ring (approx.)' },
+  { name: 'V-Spot', category: 'services', at: { time: 6.0, street: 'Esplanade' }, note: 'Volunteer sign-up (V-Spot) · Center Camp 6:00 promenade (approx.)' },
   { name: 'Fire Conclave', category: 'services', at: { time: 6.2, street: 'Esplanade' }, note: 'Great Circle fire-performance staging / Conclave Convergence (approx.)' },
-  { name: 'DMV FAST', category: 'services', at: { time: 6.3, street: 'A' }, note: 'Dept. of Mutant Vehicles · FAST licensing (Center Camp ring, approx.)' },
+  { name: 'DMV FAST', category: 'services', at: { time: 6.13, street: 'A' }, note: 'Dept. of Mutant Vehicles · FAST licensing · Center Camp 6:00 promenade (approx.)' },
   { name: 'Temple Guardians', category: 'services', at: { time: 5.7, street: 'A' }, note: 'Temple Guardians HQ (Center Camp ring, approx.)' },
   { name: 'MOOP Map HQ', category: 'services', at: { time: 5.45, street: 'A' }, note: 'MOOP Map HQ · Matter Out Of Place data (approx.)' },
-  { name: 'Water Works', category: 'services', at: { time: 5.4, street: 'Esplanade' }, note: 'Water Works office (Center Camp ring, approx.)' },
+  { name: 'Water Works', category: 'services', at: { time: 5.55, street: 'Esplanade' }, note: 'Water Works office (Center Camp ring, ~5:33, approx.)' },
   { name: 'DPW HEaT', category: 'services', at: { time: 5.3, street: 'A' }, note: 'DPW Heavy Equipment & Transport (HEaT) (approx.)' },
   // Transport / entry (amber)
   { name: 'Airport (88NV)', category: 'transport', at: { lng: -119.2107394, lat: 40.7618388 }, note: 'BRC Municipal Airport · off 5:00, outside the fence' },
