@@ -407,7 +407,7 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   { name: 'Ice · 3:00', category: 'services', at: { time: 3, street: 'G' }, note: 'Arctica ice sales' },
   { name: 'Ice · 9:00', category: 'services', at: { time: 9, street: 'G' }, note: 'Arctica ice sales' },
   { name: 'Ice · bulk', category: 'services', at: { time: 6.25, street: 'K' }, note: 'Arctica large-order / bulk ice outpost' },
-  { name: 'Lamplighters', category: 'services', at: { time: 6, radiusM: 1200 }, note: 'Lamplighter village · lights the promenades nightly (approx., moves yearly)' },
+  { name: 'Lamplighters', category: 'services', at: { time: 6.8, radiusM: 1350 }, note: 'Lamplighter village · lights the promenades nightly · ~6:48 outer (2026 Placement, approx.)' },
   { name: 'Mobility Camp', category: 'services', at: { time: 6.7, street: 'A' }, note: 'Accessibility / ADA mobility services · ~6:45 & A (2026 Placement)' },
   { name: 'DPW Depot', category: 'services', at: { time: 5.5, radiusM: K_M + 205 }, note: 'Dept. of Public Works · just past Kilgore (K)' },
   { name: 'Commissary', category: 'services', at: { time: 5.35, radiusM: DPW_ZONE_M }, note: 'DPW staff dining · staff zone, ~5:30 & F–G (approx.)' },
@@ -417,7 +417,7 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   // addresses arrive. Census/Volunteer Village sit in the 6:30 wedge; the rest ring
   // the 6:00 Center Camp plaza along the 5:30–6:30 Esplanade/A arc.
   { name: 'Census', category: 'services', at: { time: 6.45, street: 'A' }, note: 'Participant census · 6:30 wedge (2026, approx.)' },
-  { name: 'Volunteer Village', category: 'services', at: { time: 7.05, street: 'B' }, note: 'Volunteer HQ / village · ~7:00 & B (2026, approx.)' },
+  { name: 'Volunteer Village', category: 'services', at: { time: 7.25, street: 'A' }, note: 'Volunteer HQ / village · ~7:15 & A (2026 Placement, approx.)' },
   { name: 'BMIR', category: 'services', at: { time: 5.95, street: 'Esplanade' }, note: 'BMIR 94.5 FM · Burning Man Information Radio (Center Camp ring, approx.)' },
   { name: 'Placement HQ', category: 'services', at: { time: 6.1, street: 'Esplanade' }, note: 'Theme-camp Placement HQ (Center Camp ring, approx.)' },
   { name: 'V-Spot', category: 'services', at: { time: 5.85, street: 'A' }, note: 'Volunteer sign-up (V-Spot) · Center Camp ring (approx.)' },
