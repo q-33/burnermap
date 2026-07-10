@@ -582,12 +582,8 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- lower-left stack: Mesh control + gate status widget above the layers panel -->
+    <!-- lower-left stack: gate status widget above the layers panel -->
     <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
-      <!-- Meshtastic mesh radio -->
-      <ClientOnly>
-        <MeshControl />
-      </ClientOnly>
       <NuxtLink
         to="/gate"
         class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
@@ -654,26 +650,34 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- weather pill (top-left, below the bar) -->
-    <NuxtLink
-      v-if="wx"
-      to="/live"
-      class="pointer-events-auto absolute left-3 top-16 flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-    >
-      <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
-      <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
-      <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
-      <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
-    </NuxtLink>
+    <!-- top-left stack: weather pill · Meshtastic mesh · live wind readout -->
+    <div class="pointer-events-none absolute left-3 top-16 flex flex-col items-start gap-2">
+      <!-- weather pill -->
+      <NuxtLink
+        v-if="wx"
+        to="/live"
+        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+      >
+        <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
+        <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
+        <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
+        <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
+      </NuxtLink>
 
-    <!-- live wind readout (when the Wind layer is on) -->
-    <div v-if="windMode && windInfo" class="pointer-events-auto absolute left-3 top-28 flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
-      <span class="flex size-7 shrink-0 items-center justify-center rounded-full" :style="{ background: `${windInfo.color}22` }">
-        <UIcon name="i-lucide-arrow-up" class="size-5 transition-transform" :style="{ transform: `rotate(${(windInfo.dir + 135) % 360}deg)`, color: windInfo.color }" />
-      </span>
-      <div class="leading-tight">
-        <p class="text-sm"><b>{{ Math.round(windInfo.speed) }} mph</b> <span class="text-white/55">gusts {{ Math.round(windInfo.gusts) }}</span></p>
-        <p class="text-xs text-white/60">from the {{ windInfo.from }} · {{ windInfo.label }}</p>
+      <!-- Meshtastic mesh radio -->
+      <ClientOnly>
+        <MeshControl />
+      </ClientOnly>
+
+      <!-- live wind readout (when the Wind layer is on) -->
+      <div v-if="windMode && windInfo" class="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
+        <span class="flex size-7 shrink-0 items-center justify-center rounded-full" :style="{ background: `${windInfo.color}22` }">
+          <UIcon name="i-lucide-arrow-up" class="size-5 transition-transform" :style="{ transform: `rotate(${(windInfo.dir + 135) % 360}deg)`, color: windInfo.color }" />
+        </span>
+        <div class="leading-tight">
+          <p class="text-sm"><b>{{ Math.round(windInfo.speed) }} mph</b> <span class="text-white/55">gusts {{ Math.round(windInfo.gusts) }}</span></p>
+          <p class="text-xs text-white/60">from the {{ windInfo.from }} · {{ windInfo.label }}</p>
+        </div>
       </div>
     </div>
 
