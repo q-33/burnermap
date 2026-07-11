@@ -16,6 +16,7 @@
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
+    "@bufbuild/protobuf": "^2.12.1",
     "@meshtastic/core": "2.6.7",
     "@meshtastic/transport-web-bluetooth": "0.1.5",
     "@meshtastic/transport-web-serial": "0.2.5",
@@ -27,6 +28,7 @@
     "nuxt": "^4.4.8",
     "nuxt-auth-utils": "^0.5.0",
     "postgres": "^3.4.5",
+    "qrcode": "^1.5.4",
     "suncalc": "^2.0.0",
     "vue": "^3.5.35",
     "vue-router": "^5.1.0",
@@ -35,6 +37,7 @@
   "devDependencies": {
     "@types/node": "^26.0.0",
     "@types/nodemailer": "^8.0.1",
+    "@types/qrcode": "^1.5.6",
     "@vite-pwa/nuxt": "^1.1.1",
     "drizzle-kit": "^0.28.0",
     "vitest": "^2.1.0",

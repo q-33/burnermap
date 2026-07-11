@@ -67,6 +67,11 @@ async function send() {
           {{ error }}
         </p>
 
+        <NuxtLink to="/guide" class="mb-2 flex items-center gap-1 text-xs text-primary hover:underline" @click="open = false">
+          <UIcon name="i-lucide-qr-code" class="size-3.5 shrink-0" />
+          Set up your radio's channel for BurnerMap
+        </NuxtLink>
+
         <!-- not supported (iOS / Firefox) -->
         <div v-if="!anySupported" class="space-y-2 text-(--ui-text-muted)">
           <p>Connecting a Meshtastic radio needs <b>Chrome or Edge</b> on desktop or Android.</p>

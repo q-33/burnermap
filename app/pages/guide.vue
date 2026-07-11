@@ -297,6 +297,21 @@ const properties = [
           </p>
         </div>
       </UCard>
+
+      <h3 class="mt-8 font-semibold text-(--ui-text)">Join the BurnerMap mesh</h3>
+      <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
+        Scan this to put your radio on the shared BurnerMap channel with sensible playa settings —
+        or spin up a private channel just for your crew. Everyone on the same channel shows up on
+        each other's map.
+      </p>
+      <div class="mt-4 rounded-2xl border border-(--ui-border) p-4 sm:p-5">
+        <ClientOnly>
+          <MeshSetup />
+          <template #fallback>
+            <p class="py-8 text-center text-sm text-(--ui-text-muted)">Loading channel setup…</p>
+          </template>
+        </ClientOnly>
+      </div>
     </section>
 
     <div class="mt-12 flex flex-wrap gap-3">
