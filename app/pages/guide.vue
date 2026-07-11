@@ -37,6 +37,101 @@ const properties = [
       </p>
     </div>
 
+    <!-- Meshtastic -->
+    <section class="mt-12">
+      <h2 class="font-display text-xl font-semibold text-primary">Meshtastic — find your people off-grid</h2>
+      <div class="mt-3 space-y-4 text-(--ui-text-toned) leading-relaxed">
+        <p>
+          There's no cell service on the playa. <strong class="text-(--ui-text)">Meshtastic</strong> is an
+          open-source, off-grid radio network: inexpensive <strong class="text-(--ui-text)">LoRa</strong>
+          devices form a self-healing mesh that relays text messages and GPS positions for miles — no
+          internet, no towers. BurnerMap talks to your radio directly, so you can see
+          <strong class="text-(--ui-text)">your people live on the map</strong> and
+          <strong class="text-(--ui-text)">chat</strong> with them when nothing else works.
+        </p>
+      </div>
+
+      <h3 class="mt-6 font-semibold text-(--ui-text)">What you need</h3>
+      <ul class="mt-2 list-disc space-y-2 pl-5 text-(--ui-text-toned) leading-relaxed">
+        <li>
+          A <strong class="text-(--ui-text)">Meshtastic radio</strong> — e.g. a Heltec LoRa32 V3, LILYGO
+          T-Beam, or T-Deck. Models with onboard <strong class="text-(--ui-text)">GPS</strong>
+          (T-Beam/T-Deck) put you on the map automatically.
+        </li>
+        <li>
+          A phone or laptop running <strong class="text-(--ui-text)">Chrome or Edge</strong> (desktop, or
+          Android). Connecting a radio from the browser isn't possible on iPhone — see the note below.
+        </li>
+        <li>
+          Everyone in your group on the <strong class="text-(--ui-text)">same Meshtastic channel</strong>, so
+          your radios hear each other.
+        </li>
+      </ul>
+
+      <h3 class="mt-6 font-semibold text-(--ui-text)">Set it up</h3>
+      <ol class="mt-2 list-decimal space-y-3 pl-5 text-(--ui-text-toned) leading-relaxed">
+        <li>
+          <strong class="text-(--ui-text)">Prep the radio.</strong> Install the official
+          <strong class="text-(--ui-text)">Meshtastic</strong> app (iOS/Android) or web client, pair your
+          radio, and set the <strong class="text-(--ui-text)">region</strong> to
+          <strong class="text-(--ui-text)">US</strong> — with no region set, the radio won't transmit and
+          nothing will show up. Give it a short name so friends recognize you.
+        </li>
+        <li>
+          <strong class="text-(--ui-text)">Join one channel.</strong> The default channel is fine, or create a
+          shared one and send friends its QR code / URL. All radios on the same channel form your group's mesh.
+        </li>
+        <li>
+          <strong class="text-(--ui-text)">Turn on position.</strong> Enable GPS, or set a
+          <strong class="text-(--ui-text)">fixed position</strong> in the Meshtastic app for a GPS-less radio,
+          so your dot appears for everyone else.
+        </li>
+        <li>
+          <strong class="text-(--ui-text)">Connect it to BurnerMap.</strong> Open the map, tap the
+          <strong class="text-(--ui-text)">Mesh</strong> button (bottom-left), and choose
+          <strong class="text-(--ui-text)">Connect via Bluetooth</strong> or
+          <strong class="text-(--ui-text)">USB</strong>. Pick your radio in the browser prompt (the Bluetooth
+          pairing PIN is usually <code class="rounded bg-(--ui-bg-muted) px-1 py-0.5 text-sm">123456</code>).
+        </li>
+        <li>
+          <strong class="text-(--ui-text)">Find your people.</strong> Connected radios show in the
+          <strong class="text-(--ui-text)">People</strong> list and — once they have a fix — as
+          <span class="font-medium text-emerald-600 dark:text-emerald-400">green dots</span> on the map
+          (you're <span class="font-medium text-amber-600 dark:text-amber-400">amber</span>). Type in
+          <strong class="text-(--ui-text)">Mesh chat</strong> to message the whole mesh. It all keeps working
+          with no internet, and your people stay on the map even after you reload.
+        </li>
+      </ol>
+
+      <UCard class="mt-4" variant="subtle">
+        <div class="flex items-start gap-3">
+          <UIcon name="i-lucide-smartphone" class="mt-0.5 size-5 shrink-0 text-primary" />
+          <p class="text-sm text-(--ui-text-muted)">
+            <strong class="text-(--ui-text)">On an iPhone?</strong> Apple doesn't let web apps reach a radio
+            over Bluetooth or USB, so pair your radio in the official
+            <strong class="text-(--ui-text)">Meshtastic</strong> app instead — BurnerMap's radio connection is
+            for Chrome/Edge on desktop and Android. And bring power: GPS + Bluetooth drain a radio fast over a
+            week, so pack a battery bank or a small solar panel.
+          </p>
+        </div>
+      </UCard>
+
+      <h3 class="mt-8 font-semibold text-(--ui-text)">Join the BurnerMap mesh</h3>
+      <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
+        Scan this to put your radio on the shared BurnerMap channel with sensible playa settings —
+        or spin up a private channel just for your crew. Everyone on the same channel shows up on
+        each other's map.
+      </p>
+      <div class="mt-4 rounded-2xl border border-(--ui-border) p-4 sm:p-5">
+        <ClientOnly>
+          <MeshSetup />
+          <template #fallback>
+            <p class="py-8 text-center text-sm text-(--ui-text-muted)">Loading channel setup…</p>
+          </template>
+        </ClientOnly>
+      </div>
+    </section>
+
     <!-- Layout -->
     <section class="mt-12">
       <h2 class="font-display text-xl font-semibold text-primary">A city shaped like a clock</h2>
@@ -217,101 +312,6 @@ const properties = [
         Burn nights are derived from the usual schedule (the Man on the Saturday before Labor Day) until
         Burning Man publishes the official daily lineup.
       </p>
-    </section>
-
-    <!-- Meshtastic -->
-    <section class="mt-12">
-      <h2 class="font-display text-xl font-semibold text-primary">Meshtastic — find your people off-grid</h2>
-      <div class="mt-3 space-y-4 text-(--ui-text-toned) leading-relaxed">
-        <p>
-          There's no cell service on the playa. <strong class="text-(--ui-text)">Meshtastic</strong> is an
-          open-source, off-grid radio network: inexpensive <strong class="text-(--ui-text)">LoRa</strong>
-          devices form a self-healing mesh that relays text messages and GPS positions for miles — no
-          internet, no towers. BurnerMap talks to your radio directly, so you can see
-          <strong class="text-(--ui-text)">your people live on the map</strong> and
-          <strong class="text-(--ui-text)">chat</strong> with them when nothing else works.
-        </p>
-      </div>
-
-      <h3 class="mt-6 font-semibold text-(--ui-text)">What you need</h3>
-      <ul class="mt-2 list-disc space-y-2 pl-5 text-(--ui-text-toned) leading-relaxed">
-        <li>
-          A <strong class="text-(--ui-text)">Meshtastic radio</strong> — e.g. a Heltec LoRa32 V3, LILYGO
-          T-Beam, or T-Deck. Models with onboard <strong class="text-(--ui-text)">GPS</strong>
-          (T-Beam/T-Deck) put you on the map automatically.
-        </li>
-        <li>
-          A phone or laptop running <strong class="text-(--ui-text)">Chrome or Edge</strong> (desktop, or
-          Android). Connecting a radio from the browser isn't possible on iPhone — see the note below.
-        </li>
-        <li>
-          Everyone in your group on the <strong class="text-(--ui-text)">same Meshtastic channel</strong>, so
-          your radios hear each other.
-        </li>
-      </ul>
-
-      <h3 class="mt-6 font-semibold text-(--ui-text)">Set it up</h3>
-      <ol class="mt-2 list-decimal space-y-3 pl-5 text-(--ui-text-toned) leading-relaxed">
-        <li>
-          <strong class="text-(--ui-text)">Prep the radio.</strong> Install the official
-          <strong class="text-(--ui-text)">Meshtastic</strong> app (iOS/Android) or web client, pair your
-          radio, and set the <strong class="text-(--ui-text)">region</strong> to
-          <strong class="text-(--ui-text)">US</strong> — with no region set, the radio won't transmit and
-          nothing will show up. Give it a short name so friends recognize you.
-        </li>
-        <li>
-          <strong class="text-(--ui-text)">Join one channel.</strong> The default channel is fine, or create a
-          shared one and send friends its QR code / URL. All radios on the same channel form your group's mesh.
-        </li>
-        <li>
-          <strong class="text-(--ui-text)">Turn on position.</strong> Enable GPS, or set a
-          <strong class="text-(--ui-text)">fixed position</strong> in the Meshtastic app for a GPS-less radio,
-          so your dot appears for everyone else.
-        </li>
-        <li>
-          <strong class="text-(--ui-text)">Connect it to BurnerMap.</strong> Open the map, tap the
-          <strong class="text-(--ui-text)">Mesh</strong> button (bottom-left), and choose
-          <strong class="text-(--ui-text)">Connect via Bluetooth</strong> or
-          <strong class="text-(--ui-text)">USB</strong>. Pick your radio in the browser prompt (the Bluetooth
-          pairing PIN is usually <code class="rounded bg-(--ui-bg-muted) px-1 py-0.5 text-sm">123456</code>).
-        </li>
-        <li>
-          <strong class="text-(--ui-text)">Find your people.</strong> Connected radios show in the
-          <strong class="text-(--ui-text)">People</strong> list and — once they have a fix — as
-          <span class="font-medium text-emerald-600 dark:text-emerald-400">green dots</span> on the map
-          (you're <span class="font-medium text-amber-600 dark:text-amber-400">amber</span>). Type in
-          <strong class="text-(--ui-text)">Mesh chat</strong> to message the whole mesh. It all keeps working
-          with no internet, and your people stay on the map even after you reload.
-        </li>
-      </ol>
-
-      <UCard class="mt-4" variant="subtle">
-        <div class="flex items-start gap-3">
-          <UIcon name="i-lucide-smartphone" class="mt-0.5 size-5 shrink-0 text-primary" />
-          <p class="text-sm text-(--ui-text-muted)">
-            <strong class="text-(--ui-text)">On an iPhone?</strong> Apple doesn't let web apps reach a radio
-            over Bluetooth or USB, so pair your radio in the official
-            <strong class="text-(--ui-text)">Meshtastic</strong> app instead — BurnerMap's radio connection is
-            for Chrome/Edge on desktop and Android. And bring power: GPS + Bluetooth drain a radio fast over a
-            week, so pack a battery bank or a small solar panel.
-          </p>
-        </div>
-      </UCard>
-
-      <h3 class="mt-8 font-semibold text-(--ui-text)">Join the BurnerMap mesh</h3>
-      <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
-        Scan this to put your radio on the shared BurnerMap channel with sensible playa settings —
-        or spin up a private channel just for your crew. Everyone on the same channel shows up on
-        each other's map.
-      </p>
-      <div class="mt-4 rounded-2xl border border-(--ui-border) p-4 sm:p-5">
-        <ClientOnly>
-          <MeshSetup />
-          <template #fallback>
-            <p class="py-8 text-center text-sm text-(--ui-text-muted)">Loading channel setup…</p>
-          </template>
-        </ClientOnly>
-      </div>
     </section>
 
     <div class="mt-12 flex flex-wrap gap-3">
