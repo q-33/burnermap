@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
+import { MAJOR_BURNS } from '~~/lib/burns'
 
 interface EventRow {
   id: string
@@ -15,15 +16,6 @@ interface EventRow {
 const { loggedIn, user } = useUserSession()
 
 const { data: events, refresh } = await useFetch<EventRow[]>('/api/events')
-
-// Curated headline burns (the big effigy/art burns — not camp-submitted). Times
-// are playa-local; add new ones here.
-interface MajorBurn { name: string, day: string, time: string, note?: string }
-const majorBurns: MajorBurn[] = [
-  { name: 'Titanic\'s End', day: 'Friday, Sep 4', time: 'Sunset · 7:30 PM' },
-  { name: 'The Man', day: 'Saturday, Sep 5', time: 'After dark · ~9 PM (expected)' },
-  { name: 'The Temple', day: 'Sunday, Sep 6', time: 'At dusk · ~8 PM (expected)' },
-]
 
 // playa wall-clock formatting (no timezone conversion — parse the string parts)
 function parts(s: string) {
@@ -177,18 +169,18 @@ useHead({ title: 'Events — BurnerMap' })
     </div>
 
     <!-- Major burns — curated headline burns, highlighted at the top -->
-    <section v-if="majorBurns.length" class="mb-8 overflow-hidden rounded-2xl border border-red-700/25 bg-red-700/[0.055]">
+    <section v-if="MAJOR_BURNS.length" class="mb-8 overflow-hidden rounded-2xl border border-red-700/25 bg-red-700/[0.055]">
       <div class="flex items-center gap-2 border-b border-red-700/15 px-4 py-2.5 sm:px-5">
         <UIcon name="i-lucide-flame" class="size-5 text-red-700 dark:text-red-400" />
         <h2 class="font-display text-base font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">Major Burns</h2>
       </div>
       <ul class="divide-y divide-red-700/10">
-        <li v-for="b in majorBurns" :key="b.name" class="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
+        <li v-for="b in MAJOR_BURNS" :key="b.name" class="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
           <div class="min-w-0">
             <p class="font-semibold text-(--ui-text)">{{ b.name }}</p>
             <p class="mt-0.5 text-sm text-(--ui-text-muted)">
               {{ b.day }} · <span class="font-medium text-red-700 dark:text-red-400">{{ b.time }}</span>
-              <span v-if="b.note"> · {{ b.note }}</span>
+              <span v-if="b.expected"> (expected)</span>
             </p>
           </div>
           <UIcon name="i-lucide-flame" class="size-5 shrink-0 text-red-700/60 dark:text-red-400/60" />
