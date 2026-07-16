@@ -71,8 +71,10 @@ const dates = ref<string[]>([])
 const newDate = ref('')
 const campOptions = computed(() => {
   const opts = (myCamps.value ?? []).map(c => ({ label: c.name, value: c.id }))
-  // Admins can post an "official" event with no hosting camp.
-  return isAdmin.value ? [{ label: 'No camp — official event', value: '' }, ...opts] : opts
+  // Any signed-in user can post an event with no hosting camp; camp owners (and
+  // admins) can additionally attach it to a camp they own.
+  const noCamp = { label: isAdmin.value ? 'No camp — official event' : 'No camp — personal event', value: '' }
+  return [noCamp, ...opts]
 })
 
 function addDate() {
@@ -125,7 +127,7 @@ function cloneEvent(e: EventRow) {
 }
 
 async function submit() {
-  if ((!form.campId && !isAdmin.value) || !form.title || !form.startTime || !dates.value.length)
+  if (!form.title || !form.startTime || !dates.value.length)
     return
   busy.value = true
   err.value = ''
@@ -213,9 +215,9 @@ useHead({ title: 'Events — BurnerMap' })
                 </p>
                 <p v-if="e.description" class="mt-2 text-sm text-(--ui-text-toned)">{{ e.description }}</p>
               </div>
-              <div v-if="user?.id && e.ownerId === user.id" class="flex shrink-0 gap-0.5">
-                <UButton icon="i-lucide-copy" color="neutral" variant="ghost" size="xs" aria-label="Clone event" @click="cloneEvent(e)" />
-                <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" size="xs" aria-label="Delete event" @click="remove(e.id)" />
+              <div v-if="(user?.id && e.ownerId === user.id) || isAdmin" class="flex shrink-0 gap-0.5">
+                <UButton v-if="user?.id && e.ownerId === user.id" icon="i-lucide-copy" color="neutral" variant="ghost" size="xs" aria-label="Clone event" @click="cloneEvent(e)" />
+                <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" size="xs" :aria-label="user?.id && e.ownerId === user.id ? 'Delete event' : 'Prune event'" @click="remove(e.id)" />
               </div>
             </div>
           </UCard>
@@ -226,13 +228,13 @@ useHead({ title: 'Events — BurnerMap' })
     <div v-else class="py-16 text-center text-(--ui-text-muted)">
       <UIcon name="i-lucide-calendar" class="mx-auto mb-3 size-10 opacity-40" />
       <p>No upcoming events yet.</p>
-      <p v-if="loggedIn" class="mt-1 text-sm">Be the first — post one for your camp.</p>
+      <p v-if="loggedIn" class="mt-1 text-sm">Be the first — post one.</p>
     </div>
 
     <UModal v-model:open="open" title="Post an event">
       <template #body>
-        <form v-if="(myCamps && myCamps.length) || isAdmin" class="space-y-3" @submit.prevent="submit">
-          <USelect v-model="form.campId" :items="campOptions" :placeholder="isAdmin ? 'Hosting camp (optional)' : 'Hosting camp'" class="w-full" />
+        <form v-if="loggedIn" class="space-y-3" @submit.prevent="submit">
+          <USelect v-model="form.campId" :items="campOptions" placeholder="Hosting camp (optional)" class="w-full" />
           <UInput v-model="form.title" placeholder="Event title" class="w-full" />
           <UTextarea v-model="form.description" placeholder="Description (optional)" :rows="3" class="w-full" />
           <div class="grid grid-cols-2 gap-3">
@@ -256,13 +258,13 @@ useHead({ title: 'Events — BurnerMap' })
             </div>
           </div>
           <p v-if="err" class="text-sm text-red-600">{{ err }}</p>
-          <UButton type="submit" block :loading="busy" :disabled="(!form.campId && !isAdmin) || !form.title || !form.startTime || !dates.length">
+          <UButton type="submit" block :loading="busy" :disabled="!form.title || !form.startTime || !dates.length">
             {{ dates.length > 1 ? `Post ${dates.length} events` : 'Post event' }}
           </UButton>
         </form>
         <div v-else class="text-center text-sm text-(--ui-text-muted)">
-          <p>You need a camp first.</p>
-          <UButton to="/" color="primary" variant="soft" class="mt-3">Add your camp on the map</UButton>
+          <p>Please log in to post an event.</p>
+          <UButton to="/?login=1" color="primary" variant="soft" class="mt-3">Log in</UButton>
         </div>
       </template>
     </UModal>

@@ -2,8 +2,10 @@ import { eq } from 'drizzle-orm'
 import { eventSchema } from '../../utils/validation'
 import { camps, events } from '../../db/schema'
 
-// Create an event. Camp owners post under a camp they own; admins may also post
-// an "official" event with no camp, or on behalf of any camp. Auth required.
+// Create an event. Any signed-in user may post an event; ownerId records the
+// creator. Attaching it to a camp requires owning that camp (admins excepted, so
+// they can post on behalf of any camp). Admins prune anything that shouldn't be
+// here. Auth required.
 export default defineEventHandler(async (event) => {
   const user = await getFreshUser(event)
   if (!user)
@@ -21,10 +23,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 403, statusMessage: 'You do not own that camp' })
     campId = body.campId
   }
-  else if (!isAdmin) {
-    // Non-admins must host their event under a camp they own.
-    throw createError({ statusCode: 403, statusMessage: 'Select a camp to host your event' })
-  }
+  // else: a personal/unaffiliated event — allowed for any signed-in user.
 
   const [created] = await db
     .insert(events)
