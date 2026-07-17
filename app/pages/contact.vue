@@ -24,7 +24,7 @@ async function submit() {
   }
 }
 
-useHead({ title: 'Contact — BurnMap' })
+useHead({ title: 'Contact — OnPlaya' })
 </script>
 
 <template>
@@ -42,7 +42,7 @@ useHead({ title: 'Contact — BurnMap' })
       <div v-else-if="failed" class="space-y-3 py-2 text-center">
         <UIcon name="i-lucide-mail-warning" class="mx-auto size-10 text-amber-500" />
         <p class="text-sm">Sorry — the contact form can't send right now. Please email me directly:</p>
-        <UButton :to="`mailto:digit@burnermap.org?subject=BurnMap&body=${encodeURIComponent(form.message)}`" icon="i-lucide-mail">Email digit@burnermap.org</UButton>
+        <UButton :to="`mailto:digit@burnermap.org?subject=OnPlaya&body=${encodeURIComponent(form.message)}`" icon="i-lucide-mail">Email digit@burnermap.org</UButton>
       </div>
       <form v-else class="space-y-3" @submit.prevent="submit">
         <div class="grid gap-3 sm:grid-cols-2">

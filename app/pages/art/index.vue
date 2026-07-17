@@ -24,7 +24,7 @@ function currentLocation(a: Art): Loc | undefined {
   return [...a.locations].sort((x, y) => +new Date(y.createdAt) - +new Date(x.createdAt))[0]
 }
 
-useHead({ title: 'Art — BurnMap' })
+useHead({ title: 'Art — OnPlaya' })
 </script>
 
 <template>

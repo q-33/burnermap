@@ -85,7 +85,7 @@ function mapped(c: Camp) {
   return l && l.gpsLatitude != null && l.gpsLongitude != null ? l : undefined
 }
 
-useHead({ title: 'Camps — BurnMap' })
+useHead({ title: 'Camps — OnPlaya' })
 </script>
 
 <template>

@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { BURNMAP_CHANNEL, BURNMAP_LORA } from './burnmapChannel'
+import { ONPLAYA_CHANNEL, ONPLAYA_LORA } from './onplayaChannel'
 import { buildChannelUrl, randomPsk } from './channelSet'
 
 describe('buildChannelUrl', () => {
   // The hand-rolled encoder must exactly match the real Meshtastic protobuf
   // encoder — this is what makes it safe to ship without the SDK at runtime.
   it('matches the Meshtastic SDK encoder byte-for-byte', async () => {
-    const data = buildChannelUrl(BURNMAP_CHANNEL).split('#')[1]!
+    const data = buildChannelUrl(ONPLAYA_CHANNEL).split('#')[1]!
 
     const { create, toBinary } = await import('@bufbuild/protobuf')
     const { Protobuf } = await import('@meshtastic/core')
     const ref = create(Protobuf.AppOnly.ChannelSetSchema, {
-      settings: [create(Protobuf.Channel.ChannelSettingsSchema, { name: BURNMAP_CHANNEL.name, psk: BURNMAP_CHANNEL.psk })],
+      settings: [create(Protobuf.Channel.ChannelSettingsSchema, { name: ONPLAYA_CHANNEL.name, psk: ONPLAYA_CHANNEL.psk })],
       loraConfig: create(Protobuf.Config.Config_LoRaConfigSchema, {
         usePreset: true,
-        modemPreset: BURNMAP_LORA.modemPreset,
-        region: BURNMAP_LORA.region,
-        hopLimit: BURNMAP_LORA.hopLimit,
+        modemPreset: ONPLAYA_LORA.modemPreset,
+        region: ONPLAYA_LORA.region,
+        hopLimit: ONPLAYA_LORA.hopLimit,
         txEnabled: true,
-        channelNum: BURNMAP_LORA.channelNum,
-        ignoreMqtt: BURNMAP_LORA.ignoreMqtt,
+        channelNum: ONPLAYA_LORA.channelNum,
+        ignoreMqtt: ONPLAYA_LORA.ignoreMqtt,
       }),
     })
     const refB64 = Buffer.from(toBinary(Protobuf.AppOnly.ChannelSetSchema, ref)).toString('base64')
@@ -28,7 +28,7 @@ describe('buildChannelUrl', () => {
   })
 
   it('produces a valid, round-trippable Meshtastic URL', async () => {
-    const url = buildChannelUrl(BURNMAP_CHANNEL)
+    const url = buildChannelUrl(ONPLAYA_CHANNEL)
     expect(url.startsWith('https://meshtastic.org/e/#')).toBe(true)
 
     const data = url.split('#')[1]!
@@ -38,7 +38,7 @@ describe('buildChannelUrl', () => {
     const bytes = Uint8Array.from(atob(pad.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
     const cs = fromBinary(Protobuf.AppOnly.ChannelSetSchema, bytes)
 
-    expect(cs.settings[0]!.name).toBe('BurnMap')
+    expect(cs.settings[0]!.name).toBe('OnPlaya')
     expect(cs.settings[0]!.psk.length).toBe(32)
     expect(cs.loraConfig?.region).toBe(1)
     expect(cs.loraConfig?.hopLimit).toBe(3)

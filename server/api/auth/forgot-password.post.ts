@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { passwordResetTokens, users } from '../../db/schema'
 import { forgotPasswordSchema } from '../../utils/validation'
 
-const SITE_URL = process.env.PUBLIC_SITE_URL ?? 'https://burnmap.org'
+const SITE_URL = process.env.PUBLIC_SITE_URL ?? 'https://onplaya.com'
 
 // Start a password reset: if the email belongs to an account, store a hashed,
 // 1-hour, single-use token and email the raw token as a link. Always returns a
