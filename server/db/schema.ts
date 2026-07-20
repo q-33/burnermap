@@ -1,4 +1,4 @@
-import { boolean, check, doublePrecision, index, integer, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, doublePrecision, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
 export const events = pgTable('events', {
@@ -94,6 +94,20 @@ export const camps = pgTable('camps', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('camps_owner_idx').on(t.ownerId), index('camps_year_idx').on(t.year)])
+
+// Optional exact geometry for a camp, used only by the Sun & Shade tool: a
+// footprint polygon (local metre offsets from the pin) extruded by a height.
+// Deliberately its OWN table, read defensively and NEVER joined into the core
+// camps/map query — so a missing table (pre-migration) just means "no exact
+// footprints yet; fall back to the frontage×depth rectangle + default height".
+export const campGeometry = pgTable('camp_geometry', {
+  campId: uuid('camp_id').primaryKey().references(() => camps.id, { onDelete: 'cascade' }),
+  // Polygon as [dx, dy] metre offsets from the camp pin (x = east, y = north).
+  footprint: jsonb('footprint').$type<[number, number][]>(),
+  heightFt: doublePrecision('height_ft'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
 
 export const art = pgTable('art', {
   id: uuid('id').primaryKey().defaultRandom(),

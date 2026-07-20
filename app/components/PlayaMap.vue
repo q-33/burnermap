@@ -8,13 +8,13 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
 // (.client components break template refs / onMounted DOM access in Nuxt.)
 
-interface CampPin { name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null }
+interface CampPin { name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
 // A camp whose boundary is being edited live on the map (admin/owner tool).
 export interface EditCamp { id: string, name: string, lat: number, lng: number, frontageFt: number, depthFt: number }
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
 export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null }>()
 
 function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
   return {
@@ -212,10 +212,15 @@ function convexHull(pts: [number, number][]): [number, number][] {
   return lower.concat(upper)
 }
 
-// Cast shadows for every camp at a given instant: each footprint (the plot, or a
-// small default box) is swept in the anti-sun direction; length scales with sun
-// altitude. `sunTime` is epoch ms; null/sun-down → no shadows.
-const SHADOW_HEIGHT_M = 3.5 // reference structure height
+// Cast shadows for every camp at a given instant. Each camp's base outline — its
+// exact footprint polygon if set, otherwise the frontage×depth rectangle (or a
+// small default box) — is swept in the anti-sun direction; the sweep length
+// scales with that camp's structure height and the sun's altitude. `sunTime` is
+// epoch ms; null/sun-down → no shadows.
+// The ground shadow is the convex hull of {base outline} ∪ {base swept by L},
+// which is exact for convex footprints (the common case) and a slight
+// over-estimate for concave ones.
+const SHADOW_HEIGHT_M = 3.5 // fallback reference height when a camp sets none
 const SHADOW_MAX_M = 90
 // suncalc is CommonJS — normalize whether the bundler exposes a default or the
 // namespace itself.
@@ -229,27 +234,64 @@ function shadowsGeoJson(pins: CampPin[], sunTime: number | null | undefined): Ge
     return { type: 'FeatureCollection', features: [] } // sun down / too low
   const MLAT = 111320
   const MLNG = MLAT * Math.cos((manLat * Math.PI) / 180)
-  const L = Math.min(SHADOW_MAX_M, SHADOW_HEIGHT_M / Math.tan((sun.altitude * Math.PI) / 180))
   const shAz = ((sun.azimuth + 180) * Math.PI) / 180 // shadow points away from the sun
-  const sE = L * Math.sin(shAz)
-  const sN = L * Math.cos(shAz)
+  const tanAlt = Math.tan((sun.altitude * Math.PI) / 180)
+  const shDir: [number, number] = [Math.sin(shAz), Math.cos(shAz)] // unit (E, N) toward the shadow
   const features: GeoJSON.Feature[] = []
   for (const c of pins) {
     const E = (c.lng - manLng) * MLNG
     const N = (c.lat - manLat) * MLAT
-    const r = Math.hypot(E, N) || 1
-    const rad: [number, number] = [E / r, N / r]
-    const tan: [number, number] = [-N / r, E / r]
-    const hf = ((c.frontageFt ?? 0) > 0 ? (c.frontageFt! * 0.3048) : 6) / 2
-    const hd = ((c.depthFt ?? 0) > 0 ? (c.depthFt! * 0.3048) : 6) / 2
-    const base: [number, number][] = ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([sf, sd]) =>
-      [E + sf * hf * tan[0] + sd * hd * rad[0], N + sf * hf * tan[1] + sd * hd * rad[1]] as [number, number])
+    // sweep length from this camp's height (fallback to the reference height)
+    const hM = (c.heightFt ?? 0) > 0 ? c.heightFt! * 0.3048 : SHADOW_HEIGHT_M
+    const L = Math.min(SHADOW_MAX_M, hM / tanAlt)
+    const sE = L * shDir[0]
+    const sN = L * shDir[1]
+    // base outline in world E/N metres: exact footprint (metre offsets from the
+    // pin) if present, else the frontage×depth rectangle oriented to the grid.
+    let base: [number, number][]
+    if (c.footprint && c.footprint.length >= 3) {
+      base = c.footprint.map(([dx, dy]) => [E + dx, N + dy] as [number, number])
+    }
+    else {
+      const r = Math.hypot(E, N) || 1
+      const rad: [number, number] = [E / r, N / r]
+      const tan: [number, number] = [-N / r, E / r]
+      const hf = ((c.frontageFt ?? 0) > 0 ? (c.frontageFt! * 0.3048) : 6) / 2
+      const hd = ((c.depthFt ?? 0) > 0 ? (c.depthFt! * 0.3048) : 6) / 2
+      base = ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([sf, sd]) =>
+        [E + sf * hf * tan[0] + sd * hd * rad[0], N + sf * hf * tan[1] + sd * hd * rad[1]] as [number, number])
+    }
     const hull = convexHull([...base, ...base.map(([e, n]) => [e + sE, n + sN] as [number, number])])
     const ring = hull.map(([e, n]) => [manLng + e / MLNG, manLat + n / MLAT] as [number, number])
     ring.push(ring[0]!)
     features.push({ type: 'Feature', properties: { name: c.name }, geometry: { type: 'Polygon', coordinates: [ring] } })
   }
   return { type: 'FeatureCollection', features }
+}
+
+// A camp's exact footprint as a world-space ring. `offsets` are [dx, dy] metre
+// offsets from the pin (x = east, y = north).
+function footprintRing(lng: number, lat: number, offsets: [number, number][]): [number, number][] {
+  const MLAT = 111320
+  const MLNG = MLAT * Math.cos((lat * Math.PI) / 180)
+  const ring = offsets.map(([dx, dy]) => [lng + dx / MLNG, lat + dy / MLAT] as [number, number])
+  if (ring.length)
+    ring.push(ring[0]!)
+  return ring
+}
+function footprintsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = []
+  for (const c of pins) {
+    if (c.footprint && c.footprint.length >= 3)
+      features.push({ type: 'Feature', properties: { name: c.name }, geometry: { type: 'Polygon', coordinates: [footprintRing(c.lng, c.lat, c.footprint)] } })
+  }
+  return { type: 'FeatureCollection', features }
+}
+// The live footprint being edited (preview), drawn brighter than saved ones.
+function editFootprintGeoJson(ef: { lng: number, lat: number, offsets: [number, number][] } | null | undefined): GeoJSON.FeatureCollection {
+  if (!ef?.offsets || ef.offsets.length < 3)
+    return { type: 'FeatureCollection', features: [] }
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [footprintRing(ef.lng, ef.lat, ef.offsets)] } }] }
 }
 
 // --- live boundary editor --------------------------------------------------
@@ -745,6 +787,14 @@ onMounted(async () => {
       source: 'shadows',
       paint: { 'fill-color': '#1c2733', 'fill-opacity': 0.22 },
     })
+    // exact camp footprints (Sun & Shade) — outline + faint fill, over shadows
+    map.addSource('footprints', { type: 'geojson', data: footprintsGeoJson(props.camps) })
+    map.addLayer({ id: 'footprints-fill', type: 'fill', source: 'footprints', paint: { 'fill-color': '#7c5b12', 'fill-opacity': 0.12 } })
+    map.addLayer({ id: 'footprints-outline', type: 'line', source: 'footprints', paint: { 'line-color': '#8a6a1c', 'line-width': 1.4, 'line-opacity': 0.7 } })
+    // the footprint currently being edited (brighter preview)
+    map.addSource('edit-footprint', { type: 'geojson', data: editFootprintGeoJson(props.editFootprint) })
+    map.addLayer({ id: 'edit-footprint-fill', type: 'fill', source: 'edit-footprint', paint: { 'fill-color': '#d96a1e', 'fill-opacity': 0.25 } })
+    map.addLayer({ id: 'edit-footprint-outline', type: 'line', source: 'edit-footprint', paint: { 'line-color': '#d96a1e', 'line-width': 2.5 } })
     // live wind arrows (when the Wind layer is on) — over the city, under the pins
     map.addSource('wind', { type: 'geojson', data: windFieldGeoJson(props.wind) })
     map.addLayer({
@@ -896,6 +946,12 @@ watch(() => props.camps, () => {
   ;(map?.getSource('camps') as GeoJSONSource | undefined)?.setData(pinsGeoJson(props.camps))
   ;(map?.getSource('camp-plots') as GeoJSONSource | undefined)?.setData(campPlotsGeoJson(props.camps))
   ;(map?.getSource('shadows') as GeoJSONSource | undefined)?.setData(shadowsGeoJson(props.camps, props.sunTime))
+  ;(map?.getSource('footprints') as GeoJSONSource | undefined)?.setData(footprintsGeoJson(props.camps))
+}, { deep: true })
+
+// live footprint preview while editing
+watch(() => props.editFootprint, () => {
+  ;(map?.getSource('edit-footprint') as GeoJSONSource | undefined)?.setData(editFootprintGeoJson(props.editFootprint))
 }, { deep: true })
 
 // recompute shadows when the shade-tool time changes

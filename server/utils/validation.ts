@@ -129,6 +129,15 @@ export const artUpdateSchema = z.object({
   hometown: z.string().max(200).optional().or(z.literal('')),
 })
 
+// Optional exact camp geometry for the Sun & Shade tool: a footprint polygon
+// (local metre offsets from the pin) + a structure height.
+export const campGeometrySchema = z.object({
+  footprint: z.array(z.tuple([z.number(), z.number()])).min(3).max(200)
+    .refine(pts => pts.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y) && Math.abs(x) <= 1500 && Math.abs(y) <= 1500), 'Footprint points must be finite and within 1500 m of the pin')
+    .nullable().optional(),
+  heightFt: z.number().min(0).max(200).nullable().optional(),
+})
+
 // Admin broadcast email to the whole user list (or a test to the admin only).
 export const broadcastSchema = z.object({
   subject: z.string().trim().min(1).max(200),

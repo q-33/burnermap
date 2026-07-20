@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { GateStatus } from '~~/lib/gate'
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
+import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
 import { GATE_STATUS_META, gateColor } from '~~/lib/gate'
 import { dustRisk, windDir, wmo } from '~~/lib/weather'
 
@@ -66,13 +67,15 @@ const focus = computed(() => {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
 })
 
-// camps + art -> pins
-function toPins(items: any): CampPin[] {
-  return (items ?? []).flatMap((c: any) =>
-    (c.locations ?? [])
+// camps + art -> pins. `geo` (campId → exact footprint/height) is merged in for
+// camps so the Sun & Shade tool can extrude each camp's real geometry.
+function toPins(items: any, geo?: Map<string, { footprint: [number, number][] | null, heightFt: number | null }>): CampPin[] {
+  return (items ?? []).flatMap((c: any) => {
+    const g = geo?.get(c.id)
+    return (c.locations ?? [])
       .filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
-      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null })),
-  )
+      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null, heightFt: g?.heightFt ?? null, footprint: g?.footprint ?? null }))
+  })
 }
 // client-only: the map (and its pins) render client-side after hydration anyway,
 // so keep the homepage SSR shell independent of the DB — it renders instantly and
@@ -80,7 +83,11 @@ function toPins(items: any): CampPin[] {
 // data. Pins populate reactively once these resolve (PlayaMap watches the props).
 const { data: campsData, refresh: refreshCamps } = await useFetch('/api/camps', { server: false, lazy: true, default: () => [] })
 const { data: artData, refresh: refreshArt } = await useFetch('/api/art', { server: false, lazy: true, default: () => [] })
-const pins = computed<CampPin[]>(() => toPins(campsData.value))
+// Exact camp footprints/heights (Sun & Shade). Defensive endpoint → [] if the
+// migration hasn't run, so this never blocks the map.
+const { data: geoData, refresh: refreshGeo } = await useFetch<any[]>('/api/camps/geometry', { server: false, lazy: true, default: () => [] })
+const geoByCamp = computed(() => new Map((geoData.value ?? []).map((g: any) => [g.campId, { footprint: (g.footprint ?? null) as [number, number][] | null, heightFt: (g.heightFt ?? null) as number | null }])))
+const pins = computed<CampPin[]>(() => toPins(campsData.value, geoByCamp.value))
 const artPins = computed<CampPin[]>(() => toPins(artData.value))
 
 // Live Meshtastic peers (LoRa mesh) → map dots. Shared singleton state, also
@@ -432,7 +439,100 @@ function openCampEdit(camp: MyItem | null = currentCamp.value) {
   campForm.frontageFt = c.frontageFt ?? null
   campForm.depthFt = c.depthFt ?? null
   campSaveError.value = ''
+  // footprint / height editor — capture the pin location and load any geometry
+  const loc = (c as any).locations?.slice?.().sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
+  fpCampLoc.value = loc?.gpsLatitude != null ? { lat: loc.gpsLatitude, lng: loc.gpsLongitude } : null
+  loadGeometry(c.id)
   campEditOpen.value = true
+}
+
+// --- footprint + height editor (Sun & Shade exact geometry) -----------------
+const fpUnit = ref<Pt[] | null>(null) // normalized shape (encodes orientation)
+const fpSizeFt = ref(30) // largest dimension, feet
+const fpRotDeg = ref(0)
+const fpHeightFt = ref<number | null>(null)
+const fpCampLoc = ref<{ lng: number, lat: number } | null>(null)
+const fpBusy = ref(false)
+const fpError = ref('')
+const fpOffsets = computed<Pt[] | null>(() => (fpUnit.value && fpUnit.value.length >= 3) ? toOffsets(fpUnit.value, fpSizeFt.value * 0.3048, fpRotDeg.value) : null)
+// live preview handed to <PlayaMap> (renders the footprint + updates the shade)
+const editFootprint = computed(() => (fpCampLoc.value && fpOffsets.value) ? { lng: fpCampLoc.value.lng, lat: fpCampLoc.value.lat, offsets: fpOffsets.value } : null)
+
+async function loadGeometry(id: string) {
+  fpUnit.value = null
+  fpSizeFt.value = 30
+  fpRotDeg.value = 0
+  fpHeightFt.value = null
+  fpError.value = ''
+  try {
+    const g: any = await $fetch(`/api/camps/${id}/geometry`)
+    if (g?.heightFt != null)
+      fpHeightFt.value = g.heightFt
+    if (Array.isArray(g?.footprint) && g.footprint.length >= 3) {
+      const off = g.footprint as Pt[]
+      fpUnit.value = normalizeUnit(off)
+      const b = bounds(off)
+      fpSizeFt.value = Math.round(Math.max(b.w, b.h) / 0.3048) || 30
+    }
+  }
+  catch { /* no geometry yet */ }
+}
+
+async function onSvgUpload(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file)
+    return
+  fpError.value = ''
+  try {
+    fpUnit.value = parseSvgToUnitPolygon(await file.text())
+    fpRotDeg.value = 0
+  }
+  catch (err: any) {
+    fpError.value = err?.message ?? 'Could not read that SVG'
+  }
+  finally {
+    input.value = '' // let the same file be re-selected
+  }
+}
+
+async function saveGeometry() {
+  const id = campEditId.value
+  if (!id)
+    return
+  fpBusy.value = true
+  fpError.value = ''
+  try {
+    await $fetch(`/api/camps/${id}/geometry`, { method: 'PUT', body: { footprint: fpOffsets.value, heightFt: fpHeightFt.value ?? null } })
+    await refreshGeo()
+    toast.add({ title: 'Geometry saved', description: fpOffsets.value ? 'Footprint + height applied to Sun & Shade.' : 'Height applied to Sun & Shade.', color: 'success', icon: 'i-lucide-check' })
+  }
+  catch (e: any) {
+    fpError.value = e?.data?.statusMessage ?? 'Could not save geometry'
+  }
+  finally {
+    fpBusy.value = false
+  }
+}
+
+async function clearGeometry() {
+  const id = campEditId.value
+  if (!id)
+    return
+  fpBusy.value = true
+  fpError.value = ''
+  try {
+    await $fetch(`/api/camps/${id}/geometry`, { method: 'DELETE' })
+    fpUnit.value = null
+    fpHeightFt.value = null
+    await refreshGeo()
+  }
+  catch (e: any) {
+    fpError.value = e?.data?.statusMessage ?? 'Could not clear'
+  }
+  finally {
+    fpBusy.value = false
+  }
 }
 
 // From the drop sheet: edit the picked camp's details instead of moving its pin.
@@ -489,7 +589,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" />
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" />
       </ClientOnly>
     </div>
 
@@ -796,6 +896,35 @@ const itemOptions = computed(() => [
               <UInput v-model.number="campForm.depthFt" type="number" min="0" placeholder="Depth (ft)" class="w-full" />
             </div>
           </div>
+
+          <!-- Sun & Shade: exact footprint + height (optional, rarely used) -->
+          <div v-if="campEditId" class="rounded-lg border border-(--ui-border) bg-(--ui-bg-muted)/40 p-3">
+            <p class="mb-0.5 flex items-center gap-1.5 text-xs font-medium text-(--ui-text)">
+              <UIcon name="i-lucide-sun" class="size-3.5 text-primary" /> Sun &amp; Shade — exact geometry
+            </p>
+            <p class="mb-2 text-xs text-(--ui-text-muted)">Optional. Add a height, and/or upload an SVG outline of your structure, then size &amp; rotate it — the shade tool casts your real shape.</p>
+            <div class="grid grid-cols-2 gap-2">
+              <UInput v-model.number="fpHeightFt" type="number" min="0" max="200" placeholder="Height (ft)" icon="i-lucide-move-vertical" class="w-full" />
+              <label class="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-(--ui-border) px-2 text-sm text-(--ui-text-muted) transition hover:bg-(--ui-bg-muted)">
+                <UIcon name="i-lucide-upload" class="size-4" />{{ fpUnit ? 'Replace SVG' : 'Upload SVG' }}
+                <input type="file" accept=".svg,image/svg+xml" class="hidden" @change="onSvgUpload">
+              </label>
+            </div>
+            <div v-if="fpUnit" class="mt-2 space-y-1.5">
+              <label class="block text-xs text-(--ui-text-muted)">Size across — <b class="text-(--ui-text)">{{ fpSizeFt }} ft</b>
+                <input v-model.number="fpSizeFt" type="range" min="5" max="300" step="1" class="mt-1 w-full accent-primary">
+              </label>
+              <label class="block text-xs text-(--ui-text-muted)">Rotation — <b class="text-(--ui-text)">{{ fpRotDeg }}°</b>
+                <input v-model.number="fpRotDeg" type="range" min="0" max="359" step="1" class="mt-1 w-full accent-primary">
+              </label>
+            </div>
+            <p v-if="fpError" class="mt-1.5 text-xs text-red-600">{{ fpError }}</p>
+            <div class="mt-2 flex gap-2">
+              <UButton type="button" size="sm" color="primary" variant="soft" :loading="fpBusy" icon="i-lucide-save" @click="saveGeometry">Save geometry</UButton>
+              <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="fpBusy || (!fpUnit && fpHeightFt == null)" icon="i-lucide-eraser" @click="clearGeometry">Clear</UButton>
+            </div>
+          </div>
+
           <p v-if="campSaveError" class="text-sm text-red-600">{{ campSaveError }}</p>
           <div class="flex gap-2">
             <UButton type="submit" class="flex-1" :loading="campSaveBusy" :disabled="!campForm.name.trim()">Save</UButton>
