@@ -129,6 +129,13 @@ export const artUpdateSchema = z.object({
   hometown: z.string().max(200).optional().or(z.literal('')),
 })
 
+// Admin broadcast email to the whole user list (or a test to the admin only).
+export const broadcastSchema = z.object({
+  subject: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(20000),
+  target: z.enum(['self', 'all']),
+})
+
 // A direct message to another registered user.
 export const messageSchema = z.object({
   recipientId: z.string().uuid(),

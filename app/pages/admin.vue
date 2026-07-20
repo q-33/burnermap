@@ -56,10 +56,11 @@ const tabs = computed(() => [
   { key: 'content', label: 'Content', n: undefined },
   { key: 'recent', label: 'Recent', n: undefined },
   { key: 'audit', label: 'Audit', n: undefined },
+  { key: 'broadcast', label: 'Broadcast', n: undefined },
 ] as const)
-type Tab = 'queue' | 'claims' | 'online' | 'people' | 'content' | 'recent' | 'audit'
+type Tab = 'queue' | 'claims' | 'online' | 'people' | 'content' | 'recent' | 'audit' | 'broadcast'
 const route = useRoute()
-const validTabs: Tab[] = ['queue', 'claims', 'online', 'people', 'content', 'recent', 'audit']
+const validTabs: Tab[] = ['queue', 'claims', 'online', 'people', 'content', 'recent', 'audit', 'broadcast']
 const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'queue')
 watch(() => route.query.tab, (t) => { if (validTabs.includes(t as Tab)) tab.value = t as Tab })
 const ctab = ref<'camps' | 'art' | 'events'>('camps')
@@ -264,6 +265,56 @@ onMounted(() => {
   const poll = setInterval(() => { if (isAdmin.value && tab.value === 'online') refreshOnline() }, 30_000)
   onBeforeUnmount(() => { clearInterval(tick); clearInterval(poll) })
 })
+
+// --- Broadcast email to all users (prefilled with the rename announcement) ----
+const bcSubject = ref('burnermap.org is now brcmap.net — plus what’s new')
+const bcBody = ref(`BurnerMap (burnermap.org) is now BRC Map, at brcmap.net.
+
+Why the change? Our project — a community fork of the Unofficial BRC Map — shared a name with burnermap.com, a separate, long-running project. To avoid confusion and to stop stepping on their name, we've renamed to BRC Map and moved to brcmap.net.
+
+What's new:
+- Meshtastic support (new!): connect a LoRa radio over Bluetooth or USB to see your people live on the map and chat off-grid — no internet, no cell service. Setup lives in the in-app Guide.
+- Offline-first: install BRC Map to your home screen and the whole map, your GPS dot, and last-synced camps/art keep working with no signal on the playa.
+- Sun & shade planner: cast every camp's shadow at any date and time to plan for shade.
+- Live wind & dust risk: a wind-direction overlay driven by the live forecast.
+- Major burns & reminders: the Events page highlights the big burns, with day-of reminders.
+- Open events: anyone signed in can post an event now, not just camp leads.
+
+Nothing else changes — your account, camps, art, and events are all intact, and burnermap.org redirects to brcmap.net so old links still work.
+
+Please update your bookmarks to brcmap.net when you get a chance.
+
+See you on the playa,
+The BRC Map team — brcmap.net`)
+const bcBusy = ref<'self' | 'all' | ''>('')
+const bcResult = ref('')
+const bcOk = ref(false)
+const recipientCount = computed(() => new Set((users.value ?? []).map(u => u.email).filter(Boolean)).size)
+
+async function sendBroadcast(target: 'self' | 'all') {
+  if (!bcSubject.value.trim() || !bcBody.value.trim())
+    return
+  if (target === 'all') {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Send this email to all ${recipientCount.value} registered users? This can't be undone.`))
+      return
+  }
+  bcBusy.value = target
+  bcResult.value = ''
+  try {
+    const r = await $fetch<{ total: number, sent: number, failed: number }>('/api/admin/broadcast', { method: 'POST', body: { subject: bcSubject.value, body: bcBody.value, target } })
+    bcOk.value = r.failed === 0
+    bcResult.value = `${target === 'self' ? 'Test' : 'Broadcast'}: ${r.sent}/${r.total} sent${r.failed ? ` · ${r.failed} failed (SMTP may be blocked)` : ''}.`
+    await refreshAudit()
+  }
+  catch (e: any) {
+    bcOk.value = false
+    bcResult.value = e?.data?.statusMessage ?? 'Send failed'
+  }
+  finally {
+    bcBusy.value = ''
+  }
+}
 
 useHead({ title: 'Admin — BRC Map' })
 </script>
@@ -476,6 +527,30 @@ useHead({ title: 'Admin — BRC Map' })
           </li>
           <li v-if="!auditRows?.length" class="px-3 py-6 text-center text-sm text-(--ui-text-muted)">No activity logged yet.</li>
         </ul>
+      </section>
+
+      <!-- BROADCAST -->
+      <section v-show="tab === 'broadcast'" class="mt-5">
+        <p class="mb-3 text-sm text-(--ui-text-muted)">
+          Email every registered user. Each person gets their own copy (addresses stay private). Plain text —
+          blank lines start new paragraphs and lines beginning with “- ” become bullets.
+        </p>
+        <div class="space-y-3 rounded-xl border border-(--ui-border) p-4">
+          <UInput v-model="bcSubject" placeholder="Subject" class="w-full" />
+          <UTextarea v-model="bcBody" :rows="14" autoresize placeholder="Message…" class="w-full" />
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton :loading="bcBusy === 'self'" :disabled="!!bcBusy || !bcSubject.trim() || !bcBody.trim()" color="neutral" variant="soft" icon="i-lucide-send" @click="sendBroadcast('self')">
+              Send test to me
+            </UButton>
+            <UButton :loading="bcBusy === 'all'" :disabled="!!bcBusy || !bcSubject.trim() || !bcBody.trim() || !recipientCount" color="primary" icon="i-lucide-megaphone" @click="sendBroadcast('all')">
+              Send to all ({{ recipientCount }})
+            </UButton>
+            <span v-if="bcResult" class="text-sm" :class="bcOk ? 'text-green-600' : 'text-red-600'">{{ bcResult }}</span>
+          </div>
+          <p class="text-xs text-(--ui-text-muted)">
+            Tip: always “Send test to me” first — it confirms the copy and that the server can send (DigitalOcean can block outbound SMTP) before you hit the whole list.
+          </p>
+        </div>
       </section>
     </template>
 
