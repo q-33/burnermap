@@ -131,7 +131,13 @@ async function onAdminPlace(p: { lat: number, lng: number }) {
 // map owns the live geometry; this page renders a readout + Save/Cancel. ---
 const DEFAULT_FRONTAGE = 150
 const DEFAULT_DEPTH = 100
-const mapRef = ref<{ nudgeEdit: (w: 'frontage' | 'depth', d: number) => void } | null>(null)
+const mapRef = ref<{
+  nudgeEdit: (w: 'frontage' | 'depth', d: number) => void
+  startFootprintDraw: (pin: { lng: number, lat: number }, initial: [number, number][] | null) => void
+  undoFootprintVertex: () => void
+  clearFootprintDraw: () => void
+  stopFootprintDraw: () => void
+} | null>(null)
 const editLive = ref<{ lat: number, lng: number, frontageFt: number, depthFt: number } | null>(null)
 const editSaving = ref(false)
 const toast = useToast()
@@ -454,9 +460,11 @@ const fpHeightFt = ref<number | null>(null)
 const fpCampLoc = ref<{ lng: number, lat: number } | null>(null)
 const fpBusy = ref(false)
 const fpError = ref('')
+const fpDrawing = ref(false) // freehand on-map draw mode active
 const fpOffsets = computed<Pt[] | null>(() => (fpUnit.value && fpUnit.value.length >= 3) ? toOffsets(fpUnit.value, fpSizeFt.value * 0.3048, fpRotDeg.value) : null)
-// live preview handed to <PlayaMap> (renders the footprint + updates the shade)
-const editFootprint = computed(() => (fpCampLoc.value && fpOffsets.value) ? { lng: fpCampLoc.value.lng, lat: fpCampLoc.value.lat, offsets: fpOffsets.value } : null)
+// live preview handed to <PlayaMap> (renders the footprint + updates the shade).
+// Suppressed while the freehand draw layer is active so there's only one preview.
+const editFootprint = computed(() => (!fpDrawing.value && fpCampLoc.value && fpOffsets.value) ? { lng: fpCampLoc.value.lng, lat: fpCampLoc.value.lat, offsets: fpOffsets.value } : null)
 
 async function loadGeometry(id: string) {
   fpUnit.value = null
@@ -535,6 +543,45 @@ async function clearGeometry() {
   }
 }
 
+// --- freehand draw mode (on-map) --------------------------------------------
+const fpDrawOffsets = ref<Pt[]>([])
+function onFootprintDraw(offsets: Pt[]) {
+  fpDrawOffsets.value = offsets
+}
+function startDrawFootprint() {
+  if (!campEditId.value || !fpCampLoc.value)
+    return
+  fpDrawing.value = true
+  campEditOpen.value = false
+  // seed with the current (SVG/loaded) footprint so you can refine it by hand
+  nextTick(() => mapRef.value?.startFootprintDraw(fpCampLoc.value!, fpOffsets.value ?? null))
+}
+function stopDrawFootprint() {
+  mapRef.value?.stopFootprintDraw()
+  fpDrawing.value = false
+  fpDrawOffsets.value = []
+}
+async function saveDrawFootprint() {
+  const id = campEditId.value
+  if (!id)
+    return
+  fpBusy.value = true
+  fpError.value = ''
+  try {
+    const footprint = fpDrawOffsets.value.length >= 3 ? fpDrawOffsets.value : null
+    await $fetch(`/api/camps/${id}/geometry`, { method: 'PUT', body: { footprint, heightFt: fpHeightFt.value ?? null } })
+    await refreshGeo()
+    toast.add({ title: 'Footprint saved', description: 'Applied to Sun & Shade.', color: 'success', icon: 'i-lucide-check' })
+    stopDrawFootprint()
+  }
+  catch (e: any) {
+    fpError.value = e?.data?.statusMessage ?? 'Could not save'
+  }
+  finally {
+    fpBusy.value = false
+  }
+}
+
 // From the drop sheet: edit the picked camp's details instead of moving its pin.
 function editSelectedCampDetails() {
   const c = currentCamp.value
@@ -589,7 +636,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" />
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" @footprint-draw="onFootprintDraw" />
       </ClientOnly>
     </div>
 
@@ -652,6 +699,27 @@ const itemOptions = computed(() => [
 
     <!-- live boundary editor: drag the pin + green edge handles on the map; this
          panel mirrors the dimensions and offers precise +/- nudges + Save. -->
+    <!-- freehand footprint draw panel (Sun & Shade) -->
+    <div v-if="fpDrawing" class="pointer-events-auto absolute left-1/2 top-16 z-10 flex w-[min(24rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col gap-2.5 rounded-2xl border border-primary/50 bg-[#26211a]/92 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-xl">
+      <div class="flex items-start gap-2">
+        <UIcon name="i-lucide-pencil-ruler" class="mt-0.5 size-4 shrink-0 text-primary" />
+        <span class="min-w-0 flex-1 text-xs leading-snug text-white/80">Tap the map to add points · drag a point to move · double-tap a point to delete.</span>
+        <span class="shrink-0 font-mono text-xs text-white/60">{{ fpDrawOffsets.length }} pts</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-white/60">Height</span>
+        <input v-model.number="fpHeightFt" type="number" min="0" max="200" placeholder="ft" class="w-20 rounded bg-white/10 px-2 py-1 text-sm text-white outline-none placeholder:text-white/40">
+        <span class="text-xs text-white/50">ft</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <UButton size="sm" color="neutral" variant="soft" icon="i-lucide-undo-2" @click="mapRef?.undoFootprintVertex()">Undo</UButton>
+        <UButton size="sm" color="neutral" variant="soft" icon="i-lucide-eraser" @click="mapRef?.clearFootprintDraw()">Clear</UButton>
+        <UButton size="sm" color="primary" class="ml-auto" :loading="fpBusy" :disabled="fpDrawOffsets.length < 3 && fpHeightFt == null" icon="i-lucide-check" @click="saveDrawFootprint">Save</UButton>
+        <UButton size="sm" color="neutral" variant="ghost" @click="stopDrawFootprint">Cancel</UButton>
+      </div>
+      <p v-if="fpError" class="text-xs text-red-300">{{ fpError }}</p>
+    </div>
+
     <div v-if="editCamp" class="pointer-events-auto absolute left-1/2 top-16 z-10 flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col gap-2.5 rounded-2xl border border-green-500/40 bg-[#26211a]/92 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-xl">
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-frame" class="size-4 shrink-0 text-green-400" />
@@ -919,8 +987,9 @@ const itemOptions = computed(() => [
               </label>
             </div>
             <p v-if="fpError" class="mt-1.5 text-xs text-red-600">{{ fpError }}</p>
-            <div class="mt-2 flex gap-2">
-              <UButton type="button" size="sm" color="primary" variant="soft" :loading="fpBusy" icon="i-lucide-save" @click="saveGeometry">Save geometry</UButton>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <UButton type="button" size="sm" color="primary" variant="soft" :disabled="!fpCampLoc" icon="i-lucide-pencil-ruler" @click="startDrawFootprint">Draw on map</UButton>
+              <UButton type="button" size="sm" color="primary" variant="soft" :loading="fpBusy" icon="i-lucide-save" @click="saveGeometry">Save</UButton>
               <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="fpBusy || (!fpUnit && fpHeightFt == null)" icon="i-lucide-eraser" @click="clearGeometry">Clear</UButton>
             </div>
           </div>

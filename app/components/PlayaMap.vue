@@ -72,6 +72,7 @@ const emit = defineEmits<{
   position: [{ lat: number, lng: number, accuracy?: number }]
   pick: [{ lat: number, lng: number }]
   editChange: [{ lat: number, lng: number, frontageFt: number, depthFt: number }]
+  footprintDraw: [[number, number][]]
 }>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
@@ -420,7 +421,114 @@ function nudgeEdit(which: 'frontage' | 'depth', delta: number): void {
     edit.depthFt = clampFt(edit.depthFt + delta)
   renderEdit()
 }
-defineExpose({ nudgeEdit })
+// --- freehand footprint draw editor ----------------------------------------
+// Tap the map to drop vertices; drag a vertex to move it; double-tap to delete.
+// Offsets are emitted as [dx, dy] metres from the camp pin so the parent can
+// preview/save exactly like the SVG path.
+let fpDraw = false
+let fpPin: { lng: number, lat: number } | null = null
+const fpVerts: { lng: number, lat: number }[] = []
+let fpMarkers: Marker[] = []
+
+function fpVertexEl(): HTMLElement {
+  const d = document.createElement('div')
+  d.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#d96a1e;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:grab'
+  return d
+}
+function fpRender(): void {
+  const ring = fpVerts.map(v => [v.lng, v.lat] as [number, number])
+  let data: any = EMPTY_FC
+  if (fpVerts.length >= 3)
+    data = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]!]] } }] }
+  else if (fpVerts.length >= 2)
+    data = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: ring } }] }
+  ;(map?.getSource('fp-draw') as GeoJSONSource | undefined)?.setData(data)
+}
+function fpEmit(): void {
+  if (!fpPin)
+    return
+  const MLAT = 111320
+  const MLNG = MLAT * Math.cos((fpPin.lat * Math.PI) / 180)
+  emit('footprintDraw', fpVerts.map(v => [(v.lng - fpPin!.lng) * MLNG, (v.lat - fpPin!.lat) * MLAT] as [number, number]))
+  fpRender()
+}
+function fpAddVertex(lng: number, lat: number): void {
+  if (!map || !mlgl)
+    return
+  const m: Marker = new mlgl.Marker({ element: fpVertexEl(), draggable: true }).setLngLat([lng, lat]).addTo(map)
+  m.on('drag', () => {
+    const i = fpMarkers.indexOf(m)
+    if (i >= 0) {
+      const ll = m.getLngLat()
+      fpVerts[i] = { lng: ll.lng, lat: ll.lat }
+      fpEmit()
+    }
+  })
+  m.getElement().addEventListener('dblclick', (ev) => {
+    ev.stopPropagation()
+    const i = fpMarkers.indexOf(m)
+    if (i >= 0) {
+      fpVerts.splice(i, 1)
+      fpMarkers.splice(i, 1)[0]?.remove()
+      fpEmit()
+    }
+  })
+  fpVerts.push({ lng, lat })
+  fpMarkers.push(m)
+  fpEmit()
+}
+function startFootprintDraw(pin: { lng: number, lat: number }, initial: [number, number][] | null): void {
+  if (!map || !mlgl)
+    return
+  stopFootprintDraw()
+  fpDraw = true
+  fpPin = pin
+  if (!map.getSource('fp-draw'))
+    map.addSource('fp-draw', { type: 'geojson', data: EMPTY_FC })
+  if (!map.getLayer('fp-draw-fill'))
+    map.addLayer({ id: 'fp-draw-fill', type: 'fill', source: 'fp-draw', paint: { 'fill-color': '#d96a1e', 'fill-opacity': 0.22 } })
+  if (!map.getLayer('fp-draw-line'))
+    map.addLayer({ id: 'fp-draw-line', type: 'line', source: 'fp-draw', paint: { 'line-color': '#d96a1e', 'line-width': 2.5 } })
+  const MLAT = 111320
+  const MLNG = MLAT * Math.cos((pin.lat * Math.PI) / 180)
+  for (const [dx, dy] of initial ?? [])
+    fpAddVertex(pin.lng + dx / MLNG, pin.lat + dy / MLAT)
+  map.doubleClickZoom.disable() // so double-tap deletes a vertex without zooming
+  map.getCanvas().style.cursor = 'crosshair'
+  map.flyTo({ center: [pin.lng, pin.lat], zoom: 16.5, speed: 0.9 })
+  fpEmit()
+}
+function undoFootprintVertex(): void {
+  if (!fpVerts.length)
+    return
+  fpVerts.pop()
+  fpMarkers.pop()?.remove()
+  fpEmit()
+}
+function clearFootprintDraw(): void {
+  fpVerts.length = 0
+  fpMarkers.forEach(m => m.remove())
+  fpMarkers = []
+  fpEmit()
+}
+function stopFootprintDraw(): void {
+  fpDraw = false
+  fpVerts.length = 0
+  fpMarkers.forEach(m => m.remove())
+  fpMarkers = []
+  if (map?.getLayer('fp-draw-fill'))
+    map.removeLayer('fp-draw-fill')
+  if (map?.getLayer('fp-draw-line'))
+    map.removeLayer('fp-draw-line')
+  if (map?.getSource('fp-draw'))
+    map.removeSource('fp-draw')
+  if (map) {
+    map.doubleClickZoom.enable()
+    map.getCanvas().style.cursor = ''
+  }
+  fpPin = null
+}
+defineExpose({ nudgeEdit, startFootprintDraw, undoFootprintVertex, clearFootprintDraw, stopFootprintDraw })
 
 onMounted(async () => {
   await nextTick()
@@ -854,7 +962,14 @@ onMounted(async () => {
     // on an existing marker fall through to that marker's popup instead.
     const interactive = ['camps', 'art', 'toilets', 'civic-dots']
     map.on('click', (e) => {
-      if (!map || !props.dropMode)
+      if (!map)
+        return
+      // freehand footprint draw: each click drops a vertex
+      if (fpDraw) {
+        fpAddVertex(e.lngLat.lng, e.lngLat.lat)
+        return
+      }
+      if (!props.dropMode)
         return
       const hit = map.queryRenderedFeatures(e.point, { layers: interactive.filter(id => map!.getLayer(id)) })
       if (hit.length)
