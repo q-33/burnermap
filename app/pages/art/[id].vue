@@ -26,6 +26,7 @@ interface ArtDetail {
   description: string | null
   hometown: string | null
   website: string | null
+  contactEmail: string | null
   call: string | null
   isOwner: boolean
   owner: { id: string, displayName: string | null, playaName: string | null } | null
@@ -85,6 +86,42 @@ async function submitContribution() {
 async function moderate(c: Contribution, status: 'published' | 'hidden') {
   await $fetch(`/api/art/contributions/${c.id}`, { method: 'PATCH', body: { status } })
   await refresh()
+}
+
+// --- owner: edit the artwork's details --------------------------------------
+const editOpen = ref(false)
+const editBusy = ref(false)
+const editError = ref('')
+const editForm = reactive({ name: '', artist: '', description: '', website: '', hometown: '', contactEmail: '' })
+function openEdit() {
+  const a = art.value
+  if (!a)
+    return
+  editForm.name = a.name ?? ''
+  editForm.artist = a.artist ?? ''
+  editForm.description = a.description ?? ''
+  editForm.website = a.website ?? ''
+  editForm.hometown = a.hometown ?? ''
+  editForm.contactEmail = a.contactEmail ?? ''
+  editError.value = ''
+  editOpen.value = true
+}
+async function saveEdit() {
+  if (!editForm.name.trim())
+    return
+  editBusy.value = true
+  editError.value = ''
+  try {
+    await $fetch(`/api/art/${id.value}/details`, { method: 'PATCH', body: { ...editForm } })
+    editOpen.value = false
+    await refresh()
+  }
+  catch (e: any) {
+    editError.value = e?.data?.statusMessage ?? 'Could not save'
+  }
+  finally {
+    editBusy.value = false
+  }
 }
 
 // --- owner: edit the call ---------------------------------------------------
@@ -157,6 +194,7 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
       <p v-if="art.hometown" class="mt-1 text-sm text-(--ui-text-muted)">🏠 {{ art.hometown }}</p>
       <p v-if="art.description" class="mt-3 max-w-2xl whitespace-pre-line text-(--ui-text-muted)">{{ art.description }}</p>
       <div class="mt-3 flex flex-wrap gap-3">
+        <UButton v-if="art.isOwner" size="xs" color="primary" variant="solid" icon="i-lucide-pencil" @click="openEdit">Edit details</UButton>
         <UButton v-if="art.website" :to="art.website" target="_blank" size="xs" variant="subtle" icon="i-lucide-link">Website</UButton>
         <UButton v-if="mapped" :to="`/?lat=${mapped.gpsLatitude}&lng=${mapped.gpsLongitude}`" size="xs" variant="subtle" icon="i-lucide-map-pin">View on map</UButton>
         <UButton v-if="art.owner && !art.isOwner && loggedIn" :to="`/messages/${art.owner.id}`" size="xs" variant="subtle" icon="i-lucide-mail">Message the organizer</UButton>
@@ -189,6 +227,27 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
             <div class="flex gap-2">
               <UButton type="submit" :loading="claimBusy">Submit claim</UButton>
               <UButton variant="ghost" color="neutral" @click="claimOpen = false">Cancel</UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- owner: edit artwork details -->
+      <UModal v-model:open="editOpen" title="Edit artwork">
+        <template #body>
+          <form class="space-y-3" @submit.prevent="saveEdit">
+            <UInput v-model="editForm.name" placeholder="Artwork name" class="w-full" />
+            <UInput v-model="editForm.artist" placeholder="Artist / maker (optional)" icon="i-lucide-user" class="w-full" />
+            <UTextarea v-model="editForm.description" :rows="3" autoresize placeholder="Description" class="w-full" />
+            <UInput v-model="editForm.website" type="url" placeholder="Website — https://…" icon="i-lucide-link" class="w-full" />
+            <div class="grid grid-cols-2 gap-2">
+              <UInput v-model="editForm.hometown" placeholder="Hometown" class="w-full" />
+              <UInput v-model="editForm.contactEmail" type="email" placeholder="Contact email" class="w-full" />
+            </div>
+            <p v-if="editError" class="text-sm text-red-600">{{ editError }}</p>
+            <div class="flex gap-2">
+              <UButton type="submit" class="flex-1" :loading="editBusy" :disabled="!editForm.name.trim()">Save</UButton>
+              <UButton color="neutral" variant="ghost" @click="editOpen = false">Cancel</UButton>
             </div>
           </form>
         </template>

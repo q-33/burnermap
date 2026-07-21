@@ -8,7 +8,7 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
 // (.client components break template refs / onMounted DOM access in Nuxt.)
 
-interface CampPin { name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
+interface CampPin { id?: string, name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
 // A camp whose boundary is being edited live on the map (admin/owner tool).
 export interface EditCamp { id: string, name: string, lat: number, lng: number, frontageFt: number, depthFt: number }
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
@@ -97,7 +97,7 @@ function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
     type: 'FeatureCollection',
     features: pins.map(c => ({
       type: 'Feature',
-      properties: { name: c.name, address: c.address },
+      properties: { id: c.id ?? '', name: c.name, address: c.address },
       geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
     })),
   }
@@ -881,9 +881,11 @@ onMounted(async () => {
     map.on('click', 'art', (e) => {
       const f = e.features?.[0]
       if (f && map) {
+        const id = f.properties?.id
+        const link = id ? `<br><a href="/art/${esc(id)}" style="color:#d96a1e;font-weight:600">View details / edit →</a>` : ''
         new maplibregl.Popup()
           .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${esc(f.properties?.name)}</b><br>${esc(f.properties?.address)}`)
+          .setHTML(`<b>${esc(f.properties?.name)}</b><br>${esc(f.properties?.address)}${link}`)
           .addTo(map)
       }
     })

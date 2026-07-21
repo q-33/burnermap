@@ -74,7 +74,7 @@ function toPins(items: any, geo?: Map<string, { footprint: [number, number][] | 
     const g = geo?.get(c.id)
     return (c.locations ?? [])
       .filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
-      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null, heightFt: g?.heightFt ?? null, footprint: g?.footprint ?? null }))
+      .map((l: any) => ({ id: c.id, name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null, heightFt: g?.heightFt ?? null, footprint: g?.footprint ?? null }))
   })
 }
 // client-only: the map (and its pins) render client-side after hydration anyway,
@@ -312,7 +312,7 @@ async function logout() {
 
 // the current user's own camps + art (for picking vs creating)
 type DropKind = 'camp' | 'art'
-interface MyItem { id: string, name: string, description?: string | null, website?: string | null, contactEmail?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null }
+interface MyItem { id: string, name: string, artist?: string | null, description?: string | null, website?: string | null, contactEmail?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null }
 const { data: myCamps, refresh: refreshMineCamps } = await useFetch<MyItem[]>('/api/camps/mine', { immediate: false, default: () => [] })
 const { data: myArt, refresh: refreshMineArt } = await useFetch<MyItem[]>('/api/art/mine', { immediate: false, default: () => [] })
 watch(loggedIn, (v) => { if (v) { refreshMineCamps(); refreshMineArt() } }, { immediate: true })
@@ -587,6 +587,55 @@ function editSelectedCampDetails() {
   const c = currentCamp.value
   cancelDrop()
   openCampEdit(c)
+}
+
+// --- art details editor (owner) — mirrors the camp editor -------------------
+const artEditOpen = ref(false)
+const artEditId = ref<string>('')
+const artForm = reactive({ name: '', artist: '', description: '', website: '', hometown: '', contactEmail: '' })
+const artSaveBusy = ref(false)
+const artSaveError = ref('')
+const currentArt = computed<MyItem | null>(() => (myArt.value ?? []).find(a => a.id === selectedId.value) ?? null)
+
+function openArtEdit(item: MyItem | null) {
+  const a = item
+  if (!a)
+    return
+  artEditId.value = a.id
+  artForm.name = a.name ?? ''
+  artForm.artist = a.artist ?? ''
+  artForm.description = a.description ?? ''
+  artForm.website = a.website ?? ''
+  artForm.hometown = a.hometown ?? ''
+  artForm.contactEmail = a.contactEmail ?? ''
+  artSaveError.value = ''
+  artEditOpen.value = true
+}
+
+// From the drop sheet: edit the picked artwork's details instead of moving its pin.
+function editSelectedArtDetails() {
+  const a = currentArt.value
+  cancelDrop()
+  openArtEdit(a)
+}
+
+async function saveArtDetails() {
+  const id = artEditId.value
+  if (!id || !artForm.name.trim())
+    return
+  artSaveBusy.value = true
+  artSaveError.value = ''
+  try {
+    await $fetch(`/api/art/${id}/details`, { method: 'PATCH', body: { ...artForm } })
+    await Promise.all([refreshMineArt(), refreshArt()])
+    artEditOpen.value = false
+  }
+  catch (e: any) {
+    artSaveError.value = e?.data?.statusMessage ?? 'Could not save'
+  }
+  finally {
+    artSaveBusy.value = false
+  }
 }
 
 async function saveCampDetails() {
@@ -901,6 +950,24 @@ const itemOptions = computed(() => [
     </UModal>
 
     <!-- drop pin modal -->
+    <!-- owner: edit an artwork's details -->
+    <UModal v-model:open="artEditOpen" title="My artwork">
+      <template #body>
+        <form class="space-y-3" @submit.prevent="saveArtDetails">
+          <UInput v-model="artForm.name" placeholder="Artwork name" class="w-full" />
+          <UInput v-model="artForm.artist" placeholder="Artist / maker (optional)" icon="i-lucide-user" class="w-full" />
+          <UTextarea v-model="artForm.description" :rows="3" autoresize placeholder="Description" class="w-full" />
+          <UInput v-model="artForm.website" type="url" placeholder="Website — https://…" icon="i-lucide-link" class="w-full" />
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model="artForm.hometown" placeholder="Hometown" class="w-full" />
+            <UInput v-model="artForm.contactEmail" type="email" placeholder="Contact email" class="w-full" />
+          </div>
+          <p v-if="artSaveError" class="text-sm text-red-600">{{ artSaveError }}</p>
+          <UButton type="submit" block :loading="artSaveBusy" :disabled="!artForm.name.trim()">Save details</UButton>
+        </form>
+      </template>
+    </UModal>
+
     <UModal v-model:open="dropOpen" :title="creatingNew ? `Drop my ${dropKind}` : `Move my ${dropKind}`" :dismissible="false">
       <template #body>
         <form class="space-y-3" @submit.prevent="dropPin">
@@ -916,13 +983,14 @@ const itemOptions = computed(() => [
             :items="itemOptions"
             class="w-full"
           />
-          <!-- Hubs: edit the picked camp's details instead of moving its pin. -->
+          <!-- Edit the picked item's details instead of moving its pin (camp
+               owners/Hubs, and art owners). -->
           <UButton
-            v-if="dropKind === 'camp' && !creatingNew"
+            v-if="!creatingNew"
             block color="neutral" variant="soft" icon="i-lucide-pencil"
-            @click="editSelectedCampDetails"
+            @click="dropKind === 'camp' ? editSelectedCampDetails() : editSelectedArtDetails()"
           >
-            Edit this camp's details
+            Edit this {{ dropKind === 'camp' ? 'camp' : 'artwork' }}'s details
           </UButton>
           <UInput
             v-if="creatingNew"
