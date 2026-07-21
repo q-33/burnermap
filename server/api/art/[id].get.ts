@@ -1,4 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm'
+import { canManageAnyCamp } from '~~/lib/roles'
 import { art, artClaims } from '../../db/schema'
 
 // Public: one artwork with its locations, open call, and contributions.
@@ -47,9 +48,13 @@ export default defineEventHandler(async (event) => {
     myClaim = c ? { status: c.status } : null
   }
 
-  const out = { ...row, isOwner, contributions, myClaim } as Record<string, unknown>
-  // Only the owner needs the contact email / legacy url; strip for everyone else.
-  if (!isOwner) {
+  // Admins/Org can manage (edit) any artwork, like they can any camp.
+  const canManage = isOwner || canManageAnyCamp(viewer?.role)
+  const out = { ...row, isOwner, canManage, contributions, myClaim } as Record<string, unknown>
+  // The contact email / legacy url are only for someone who can manage the
+  // artwork (its owner, or an admin/Org) — strip for everyone else. (Managers
+  // need contactEmail so the edit form doesn't blank it on save.)
+  if (!canManage) {
     delete out.contactEmail
     delete out.url
   }

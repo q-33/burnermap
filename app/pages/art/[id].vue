@@ -29,6 +29,7 @@ interface ArtDetail {
   contactEmail: string | null
   call: string | null
   isOwner: boolean
+  canManage: boolean
   owner: { id: string, displayName: string | null, playaName: string | null } | null
   myClaim: { status: string } | null
   locations: Loc[]
@@ -194,7 +195,7 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
       <p v-if="art.hometown" class="mt-1 text-sm text-(--ui-text-muted)">🏠 {{ art.hometown }}</p>
       <p v-if="art.description" class="mt-3 max-w-2xl whitespace-pre-line text-(--ui-text-muted)">{{ art.description }}</p>
       <div class="mt-3 flex flex-wrap gap-3">
-        <UButton v-if="art.isOwner" size="xs" color="primary" variant="solid" icon="i-lucide-pencil" @click="openEdit">Edit details</UButton>
+        <UButton v-if="art.canManage" size="xs" color="primary" variant="solid" icon="i-lucide-pencil" @click="openEdit">Edit details</UButton>
         <UButton v-if="art.website" :to="art.website" target="_blank" size="xs" variant="subtle" icon="i-lucide-link">Website</UButton>
         <UButton v-if="mapped" :to="`/?lat=${mapped.gpsLatitude}&lng=${mapped.gpsLongitude}`" size="xs" variant="subtle" icon="i-lucide-map-pin">View on map</UButton>
         <UButton v-if="art.owner && !art.isOwner && loggedIn" :to="`/messages/${art.owner.id}`" size="xs" variant="subtle" icon="i-lucide-mail">Message the organizer</UButton>
